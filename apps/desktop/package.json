@@ -1,0 +1,16 @@
+{
+  "name": "@amplio/desktop",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Amplio desktop app. Local-first product analytics you run yourself.",
+  "license": "MIT",
+  "main": "src/main.js",
+  "scripts": {
+    "start": "electron .",
+    "typecheck": "node --check src/main.js && node --check src/preload.js && node --check src/lib/serve.js && node --check src/lib/stack.js",
+    "test": "echo \"no desktop tests\""
+  },
+  "devDependencies": {
+    "electron": "^33.2.1"
+  }
+}

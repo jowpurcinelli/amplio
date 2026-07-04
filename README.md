@@ -38,6 +38,12 @@ Early and moving fast. See the [roadmap](docs/ROADMAP.md) for what is live and w
 | Self-host deploy (Docker + Caddy) | 🟢 done |
 | Public demo instance | ⚪ needs a server |
 
+## Desktop app
+
+Prefer a native app? `apps/desktop` is an Electron app that runs the entire
+stack locally and opens the dashboard in its own window, no hosting required.
+See [apps/desktop/README.md](apps/desktop/README.md).
+
 ## Dashboard
 
 Segmentation, funnels, and retention, with a live chart builder against your own data.
