@@ -92,6 +92,14 @@ curl -X POST http://localhost:8787/2/httpapi \
   }'
 ```
 
+Or populate a realistic demo dataset (signup to purchase funnel, retention, and
+segmentation all get shape) with one command:
+
+```bash
+node scripts/seed-demo.mjs
+# tune with env: AMPLIO_USERS=500 AMPLIO_DAYS=30 node scripts/seed-demo.mjs
+```
+
 ## Repository layout
 
 ```

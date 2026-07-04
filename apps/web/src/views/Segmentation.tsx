@@ -7,6 +7,7 @@ import { LineChart } from "../components/LineChart.js";
 import { SaveBar } from "../components/SaveBar.js";
 import { PRESETS, presetRange } from "../lib/time.js";
 import { segmentationSeries } from "../lib/charts.js";
+import { downloadCsv } from "../lib/csv.js";
 
 export function Segmentation({
   settings,
@@ -172,9 +173,23 @@ export function Segmentation({
                 ))}
               </div>
             )}
-            <button className="btn secondary" style={{ marginTop: 14 }} onClick={() => setShowTable((v) => !v)}>
-              {showTable ? "Hide" : "Show"} data table
-            </button>
+            <div className="row" style={{ marginTop: 14 }}>
+              <button className="btn secondary" onClick={() => setShowTable((v) => !v)}>
+                {showTable ? "Hide" : "Show"} data table
+              </button>
+              <button
+                className="btn secondary"
+                onClick={() =>
+                  downloadCsv(
+                    `${event}-segmentation.csv`,
+                    ["bucket", ...series.map((s) => s.name)],
+                    labels.map((lab, i) => [lab, ...series.map((s) => s.values[i] ?? 0)]),
+                  )
+                }
+              >
+                Export CSV
+              </button>
+            </div>
             {showTable && (
               <table className="data" style={{ marginTop: 12 }}>
                 <thead>

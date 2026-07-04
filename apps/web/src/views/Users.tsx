@@ -2,6 +2,7 @@ import { useState } from "react";
 import type { Settings } from "../config.js";
 import { queryUser, type UserActivityRow, type UserSummary } from "../api.js";
 import { Field } from "../components/Field.js";
+import { downloadCsv } from "../lib/csv.js";
 
 function fmtTime(raw: string): string {
   const d = new Date(raw.replace(" ", "T") + "Z");
@@ -98,6 +99,20 @@ export function Users({ settings }: { settings: Settings }) {
                 <PropChips props={summary.latest_properties} />
               </div>
             )}
+            <div className="row" style={{ margin: "4px 0 8px" }}>
+              <button
+                className="btn secondary"
+                onClick={() =>
+                  downloadCsv(
+                    `${userId.trim()}-events.csv`,
+                    ["time", "event", "properties"],
+                    activity.map((r) => [r.time, r.event_type, JSON.stringify(r.event_properties)]),
+                  )
+                }
+              >
+                Export CSV
+              </button>
+            </div>
             <table className="data" style={{ marginTop: 8 }}>
               <thead>
                 <tr>

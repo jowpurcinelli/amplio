@@ -4,6 +4,7 @@ import { Segmentation } from "./views/Segmentation.js";
 import { Funnel } from "./views/Funnel.js";
 import { Retention } from "./views/Retention.js";
 import { Users } from "./views/Users.js";
+import { Events } from "./views/Events.js";
 import { Dashboards } from "./views/Dashboards.js";
 import { Cohorts } from "./views/Cohorts.js";
 import { Library } from "./views/Library.js";
@@ -12,6 +13,7 @@ import { Settings } from "./views/Settings.js";
 import type { ChartKind, SavedChart } from "./api.js";
 
 type View =
+  | "events"
   | "segmentation"
   | "funnel"
   | "retention"
@@ -23,6 +25,7 @@ type View =
   | "settings";
 
 const NAV: { key: View; label: string; glyph: string }[] = [
+  { key: "events", label: "Events", glyph: "📋" },
   { key: "dashboards", label: "Dashboards", glyph: "📊" },
   { key: "segmentation", label: "Segmentation", glyph: "📈" },
   { key: "funnel", label: "Funnels", glyph: "🔻" },
@@ -35,6 +38,7 @@ const NAV: { key: View; label: string; glyph: string }[] = [
 ];
 
 const TITLES: Record<View, { title: string; sub: string }> = {
+  events: { title: "Events", sub: "Every event type Amplio is receiving, by volume." },
   segmentation: { title: "Segmentation", sub: "Event volume and unique users over time, broken down by any property." },
   funnel: { title: "Funnels", sub: "Ordered-step conversion within a window." },
   retention: { title: "Retention", sub: "How many users come back, by day offset from their first event." },
@@ -59,7 +63,7 @@ function useTheme(): [string, () => void] {
 }
 
 export default function App() {
-  const [view, setView] = useState<View>("segmentation");
+  const [view, setView] = useState<View>("events");
   const [settings, setSettings] = useState<SettingsT>(loadSettings);
   const [loaded, setLoaded] = useState<{ kind: ChartKind; definition: Record<string, unknown> } | null>(null);
   const [theme, cycleTheme] = useTheme();
@@ -77,6 +81,14 @@ export default function App() {
   const openChart = (chart: SavedChart) => {
     setLoaded({ kind: chart.kind, definition: chart.definition });
     setView(chart.kind);
+  };
+
+  const exploreEvent = (eventType: string) => {
+    setLoaded({
+      kind: "segmentation",
+      definition: { eventType, measure: "total", granularity: "day", days: 30 },
+    });
+    setView("segmentation");
   };
 
   const initialFor = (kind: ChartKind) =>
@@ -112,6 +124,7 @@ export default function App() {
         </div>
         <p className="page-sub">{TITLES[view].sub}</p>
 
+        {view === "events" && <Events settings={settings} onExplore={exploreEvent} />}
         {view === "segmentation" && <Segmentation settings={settings} initial={initialFor("segmentation")} />}
         {view === "funnel" && <Funnel settings={settings} initial={initialFor("funnel")} />}
         {view === "retention" && <Retention settings={settings} initial={initialFor("retention")} />}

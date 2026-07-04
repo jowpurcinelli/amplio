@@ -6,6 +6,7 @@ import { Field, EventSelect } from "../components/Field.js";
 import { LineChart } from "../components/LineChart.js";
 import { SaveBar } from "../components/SaveBar.js";
 import { PRESETS, presetRange, SERIES_VARS } from "../lib/time.js";
+import { downloadCsv } from "../lib/csv.js";
 
 export function Retention({
   settings,
@@ -127,9 +128,23 @@ export function Retention({
               format={(n) => `${Math.round(n)}%`}
               xLabel={(l) => l}
             />
-            <button className="btn secondary" style={{ marginTop: 14 }} onClick={() => setShowTable((v) => !v)}>
-              {showTable ? "Hide" : "Show"} data table
-            </button>
+            <div className="row" style={{ marginTop: 14 }}>
+              <button className="btn secondary" onClick={() => setShowTable((v) => !v)}>
+                {showTable ? "Hide" : "Show"} data table
+              </button>
+              <button
+                className="btn secondary"
+                onClick={() =>
+                  downloadCsv(
+                    `${startEvent}-retention.csv`,
+                    ["offset", "retained", "percent"],
+                    labels.map((lab, i) => [lab, byOffset.get(i) ?? 0, (pctValues[i] ?? 0).toFixed(1)]),
+                  )
+                }
+              >
+                Export CSV
+              </button>
+            </div>
             {showTable && (
               <table className="data" style={{ marginTop: 12 }}>
                 <thead>
