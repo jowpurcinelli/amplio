@@ -33,8 +33,22 @@ Early and moving fast. See the [roadmap](docs/ROADMAP.md) for what is live and w
 | Query engine (funnels/retention/segmentation) | 🟢 done |
 | Query API | 🟢 done |
 | Browser SDK (also runs in Node) | 🟢 done |
-| Dashboard UI | 🟡 next |
-| Self-host deploy | ⚪ planned |
+| Dashboard UI (segmentation, funnels, retention) | 🟢 done |
+| Self-host deploy | 🟡 next |
+
+## Dashboard
+
+Segmentation, funnels, and retention, with a live chart builder against your own data.
+
+![Funnel analysis](docs/images/funnel.png)
+
+<details>
+<summary>More views</summary>
+
+![Segmentation](docs/images/segmentation.png)
+![Retention](docs/images/retention.png)
+
+</details>
 
 ## Architecture at a glance
 

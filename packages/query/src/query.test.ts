@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import { buildSegmentation } from "./segmentation.js";
 import { buildFunnel } from "./funnel.js";
 import { buildRetention } from "./retention.js";
+import { buildEventNames, buildPropertyKeys } from "./meta.js";
 
 const range = { from: 1_700_000_000_000, to: 1_700_600_000_000 };
 
@@ -113,5 +114,20 @@ describe("buildRetention", () => {
     expect(Object.values(q.params)).toContain("signup");
     expect(Object.values(q.params)).toContain("login");
     expect(Object.values(q.params)).toContain(7);
+  });
+});
+
+describe("meta builders", () => {
+  it("buildEventNames binds project and orders by volume", () => {
+    const q = buildEventNames("proj_xyz");
+    expect(q.sql).toContain("GROUP BY event_type");
+    expect(q.sql).toContain("ORDER BY volume DESC");
+    expect(Object.values(q.params)).toContain("proj_xyz");
+    expect(q.sql).not.toContain("proj_xyz");
+  });
+
+  it("buildPropertyKeys targets the right map column per scope", () => {
+    expect(buildPropertyKeys("p", "signup", "event").sql).toContain("mapKeys(event_properties)");
+    expect(buildPropertyKeys("p", "signup", "user").sql).toContain("mapKeys(user_properties)");
   });
 });

@@ -5,6 +5,8 @@ import {
   buildSegmentation,
   buildFunnel,
   buildRetention,
+  buildEventNames,
+  buildPropertyKeys,
   type CompiledQuery,
 } from "@amplio/query";
 import type { ApiConfig } from "./config.js";
@@ -54,6 +56,24 @@ export function buildApi(deps: ApiDeps): FastifyInstance {
   };
 
   app.get("/health", async () => ({ status: "ok", service: "amplio-api" }));
+
+  app.get("/meta/events", async (req, reply) => {
+    const projectId = authProject(req, reply);
+    if (!projectId) return;
+    await run(reply, buildEventNames(projectId));
+  });
+
+  app.get("/meta/properties", async (req, reply) => {
+    const projectId = authProject(req, reply);
+    if (!projectId) return;
+    const q = req.query as { event?: string; scope?: string };
+    if (!q.event) {
+      reply.status(400).send({ error: "event query param is required" });
+      return;
+    }
+    const scope = q.scope === "user" ? "user" : "event";
+    await run(reply, buildPropertyKeys(projectId, q.event, scope));
+  });
 
   app.post("/query/segmentation", async (req, reply) => {
     const projectId = authProject(req, reply);

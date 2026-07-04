@@ -3,11 +3,12 @@ import { ACTOR, Params, compileFilters, rangeClause } from "./sql.js";
 
 /**
  * Retention: for the cohort of actors whose first `startEvent` falls in the
- * range, how many are still active (did `returnEvent`) at each day offset.
+ * range, how many return (do `returnEvent`) at each day offset.
  *
- * Offset 0 is the cohort's first-activity day. When returnEvent === startEvent,
- * offset 0 equals the cohort size and later offsets are the classic retention
- * curve. Filters constrain the cohort definition (the start-event subquery).
+ * Offset 0 is always the full cohort size (the 100% base), matching how
+ * product-analytics tools anchor a retention curve. Offsets 1..days count
+ * distinct cohort actors who did the return event that many days after their
+ * first start event. Filters constrain the cohort definition.
  */
 export function buildRetention(q: RetentionQuery): CompiledQuery {
   const p = new Params();
@@ -21,22 +22,22 @@ export function buildRetention(q: RetentionQuery): CompiledQuery {
   const retRange = rangeClause(q.range, p);
   const maxDays = p.bind(q.days, "UInt32");
 
-  const sql = `SELECT
-  offset,
-  uniqExact(actor) AS retained
-FROM (
+  const sql = `WITH cohort AS (
+  SELECT ${ACTOR} AS actor, toStartOfDay(min(time)) AS cohort_day
+  FROM events
+  WHERE project_id = ${projectId}
+    AND event_type = ${startEvent}
+    AND ${cohortRange}
+    ${cohortFilters}
+  GROUP BY actor
+)
+SELECT offset, retained FROM (
+  SELECT 0 AS offset, uniqExact(actor) AS retained FROM cohort
+  UNION ALL
   SELECT
-    c.actor AS actor,
-    dateDiff('day', c.cohort_day, a.activity_day) AS offset
-  FROM (
-    SELECT ${ACTOR} AS actor, toStartOfDay(min(time)) AS cohort_day
-    FROM events
-    WHERE project_id = ${projectId}
-      AND event_type = ${startEvent}
-      AND ${cohortRange}
-      ${cohortFilters}
-    GROUP BY actor
-  ) AS c
+    dateDiff('day', c.cohort_day, a.activity_day) AS offset,
+    uniqExact(c.actor) AS retained
+  FROM cohort AS c
   INNER JOIN (
     SELECT DISTINCT ${ACTOR} AS actor, toStartOfDay(time) AS activity_day
     FROM events
@@ -44,10 +45,9 @@ FROM (
       AND event_type = ${retEvent}
       AND ${retRange}
   ) AS a ON c.actor = a.actor
-  WHERE a.activity_day >= c.cohort_day
-    AND dateDiff('day', c.cohort_day, a.activity_day) <= ${maxDays}
+  WHERE dateDiff('day', c.cohort_day, a.activity_day) BETWEEN 1 AND ${maxDays}
+  GROUP BY offset
 )
-GROUP BY offset
 ORDER BY offset ASC`;
 
   return { sql, params: p.values };
