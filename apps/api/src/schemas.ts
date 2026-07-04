@@ -1,0 +1,39 @@
+import { z } from "zod";
+
+const timeRange = z.object({
+  from: z.number().int().nonnegative(),
+  to: z.number().int().nonnegative(),
+});
+
+const propertyFilter = z.object({
+  scope: z.enum(["event", "user"]),
+  key: z.string().min(1),
+  op: z.enum(["is", "is_not", "contains", "gt", "lt", "set", "not_set"]),
+  values: z.array(z.string()).optional(),
+});
+
+/** Request bodies omit projectId; it is resolved from the read key. */
+export const segmentationBody = z.object({
+  eventType: z.string().min(1),
+  range: timeRange,
+  granularity: z.enum(["hour", "day", "week", "month"]),
+  measure: z.enum(["total", "unique"]),
+  filters: z.array(propertyFilter).optional(),
+  groupBy: z.object({ scope: z.enum(["event", "user"]), key: z.string().min(1) }).optional(),
+  limit: z.number().int().positive().max(1000).optional(),
+});
+
+export const funnelBody = z.object({
+  steps: z.array(z.string().min(1)).min(2).max(20),
+  range: timeRange,
+  windowSeconds: z.number().int().positive(),
+  filters: z.array(propertyFilter).optional(),
+});
+
+export const retentionBody = z.object({
+  startEvent: z.string().min(1),
+  returnEvent: z.string().min(1).optional(),
+  range: timeRange,
+  days: z.number().int().positive().max(180),
+  filters: z.array(propertyFilter).optional(),
+});
