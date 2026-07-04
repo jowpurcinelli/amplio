@@ -6,11 +6,14 @@ export interface Settings {
 const KEY = "amplio_dashboard_settings";
 
 /**
- * In local dev the query API runs on :8788. When the dashboard is served from a
- * real host, the API is reverse-proxied under the same origin at /api, so we
- * default there and avoid a hard-coded hostname.
+ * Resolve the default API URL:
+ *  1. A build-time VITE_API_URL (set this on Vercel/CI to bake in a backend).
+ *  2. Local dev: the query API on :8788.
+ *  3. Otherwise same-origin /api (self-host behind the Caddy proxy).
+ * A visitor can always override both in Settings.
  */
 function defaultApiUrl(): string {
+  if (import.meta.env.VITE_API_URL) return import.meta.env.VITE_API_URL;
   if (typeof location !== "undefined") {
     const local = location.hostname === "localhost" || location.hostname === "127.0.0.1";
     if (!local) return `${location.origin}/api`;
@@ -19,7 +22,7 @@ function defaultApiUrl(): string {
 }
 
 function defaults(): Settings {
-  return { apiUrl: defaultApiUrl(), readKey: "dev-read-key" };
+  return { apiUrl: defaultApiUrl(), readKey: import.meta.env.VITE_READ_KEY ?? "dev-read-key" };
 }
 
 export function loadSettings(): Settings {

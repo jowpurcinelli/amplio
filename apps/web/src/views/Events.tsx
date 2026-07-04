@@ -26,7 +26,16 @@ export function Events({
 
   return (
     <div className="card">
-      {error && <div className="error">{error}</div>}
+      {error && (
+        <div>
+          <div className="error">Could not reach the Amplio API.</div>
+          <div className="empty" style={{ padding: "12px 0", textAlign: "left" }}>
+            Point this dashboard at a running Amplio API in <strong>Settings</strong> (URL and read key).
+            Locally that is <code>http://localhost:8788</code> with <code>dev-read-key</code>.
+            <div style={{ marginTop: 8, color: "var(--muted)", fontSize: 12 }}>{error}</div>
+          </div>
+        </div>
+      )}
       {events && events.length === 0 && (
         <div className="empty">
           No events yet. Send some with an SDK, or run <code>node scripts/seed-demo.mjs</code>.
