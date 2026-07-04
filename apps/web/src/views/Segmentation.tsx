@@ -1,39 +1,12 @@
 import { useEffect, useState } from "react";
 import type { Settings } from "../config.js";
-import { fetchEventNames, fetchPropertyKeys, querySegmentation } from "../api.js";
-import type { Granularity, Measure, SegmentationRow } from "../api.js";
+import { fetchEventNames, fetchPropertyKeys, querySegmentation, listCohorts } from "../api.js";
+import type { Granularity, Measure, SegmentationRow, Cohort } from "../api.js";
 import { Field, EventSelect } from "../components/Field.js";
-import { LineChart, type Series } from "../components/LineChart.js";
+import { LineChart } from "../components/LineChart.js";
 import { SaveBar } from "../components/SaveBar.js";
-import { PRESETS, presetRange, bucketLabel, SERIES_VARS } from "../lib/time.js";
-
-function toSeries(
-  rows: SegmentationRow[],
-  granularity: string,
-  grouped: boolean,
-): { labels: string[]; series: Series[] } {
-  const buckets = Array.from(new Set(rows.map((r) => r.bucket))).sort();
-  const labels = buckets.map((b) => bucketLabel(b, granularity));
-  if (!grouped) {
-    const byBucket = new Map(rows.map((r) => [r.bucket, Number(r.value)]));
-    return {
-      labels,
-      series: [{ name: "value", color: SERIES_VARS[0]!, values: buckets.map((b) => byBucket.get(b) ?? 0) }],
-    };
-  }
-  const groups = Array.from(new Set(rows.map((r) => r.group_key ?? "(none)")));
-  const series = groups.slice(0, 8).map((g, i) => {
-    const byBucket = new Map(
-      rows.filter((r) => (r.group_key ?? "(none)") === g).map((r) => [r.bucket, Number(r.value)]),
-    );
-    return {
-      name: g || "(empty)",
-      color: SERIES_VARS[i % SERIES_VARS.length]!,
-      values: buckets.map((b) => byBucket.get(b) ?? 0),
-    };
-  });
-  return { labels, series };
-}
+import { PRESETS, presetRange } from "../lib/time.js";
+import { segmentationSeries } from "../lib/charts.js";
 
 export function Segmentation({
   settings,
@@ -49,6 +22,8 @@ export function Segmentation({
   const [days, setDays] = useState(30);
   const [propKeys, setPropKeys] = useState<string[]>([]);
   const [breakdown, setBreakdown] = useState("");
+  const [cohorts, setCohorts] = useState<Cohort[]>([]);
+  const [cohortId, setCohortId] = useState("");
 
   useEffect(() => {
     if (!initial) return;
@@ -67,6 +42,9 @@ export function Segmentation({
     fetchEventNames(settings)
       .then((e) => setNames(e.map((x) => x.name)))
       .catch(() => setNames([]));
+    listCohorts(settings)
+      .then(setCohorts)
+      .catch(() => setCohorts([]));
   }, [settings]);
 
   useEffect(() => {
@@ -79,6 +57,7 @@ export function Segmentation({
     setLoading(true);
     setError(null);
     try {
+      const cohort = cohorts.find((c) => c.id === cohortId)?.definition;
       setRows(
         await querySegmentation(settings, {
           eventType: event,
@@ -86,6 +65,7 @@ export function Segmentation({
           granularity,
           measure,
           groupBy: breakdown ? { scope: "event", key: breakdown } : undefined,
+          cohort,
           limit: 8,
         }),
       );
@@ -97,7 +77,9 @@ export function Segmentation({
     }
   };
 
-  const { labels, series } = rows ? toSeries(rows, granularity, Boolean(breakdown)) : { labels: [], series: [] };
+  const { labels, series } = rows
+    ? segmentationSeries(rows, granularity, Boolean(breakdown))
+    : { labels: [] as string[], series: [] };
   const total = series.reduce((sum, s) => sum + s.values.reduce((a, b) => a + b, 0), 0);
 
   return (
@@ -136,6 +118,16 @@ export function Segmentation({
               {propKeys.map((k) => (
                 <option key={k} value={k}>
                   {k}
+                </option>
+              ))}
+            </select>
+          </Field>
+          <Field label="Cohort">
+            <select value={cohortId} onChange={(e) => setCohortId(e.target.value)}>
+              <option value="">All users</option>
+              {cohorts.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
                 </option>
               ))}
             </select>

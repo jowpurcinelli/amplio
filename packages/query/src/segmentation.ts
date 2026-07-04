@@ -16,6 +16,18 @@ export function buildSegmentation(q: SegmentationQuery): CompiledQuery {
   const range = rangeClause(q.range, p);
   const filters = compileFilters(q.filters, p);
 
+  // A cohort restricts the query to actors who performed the cohort event
+  // (matching its filters) within the same range.
+  const cohortClause = q.cohort
+    ? `\n  AND ${ACTOR} IN (
+    SELECT ${ACTOR} FROM events
+    WHERE project_id = ${projectId}
+      AND event_type = ${p.bind(q.cohort.eventType, "String")}
+      AND ${range}
+      ${compileFilters(q.cohort.filters, p)}
+  )`
+    : "";
+
   const groupSelect = q.groupBy
     ? `,\n  ${q.groupBy.scope === "event" ? "event_properties" : "user_properties"}[${p.bind(q.groupBy.key, "String")}] AS group_key`
     : "";
@@ -29,7 +41,7 @@ FROM events
 WHERE project_id = ${projectId}
   AND event_type = ${eventType}
   AND ${range}
-  ${filters}
+  ${filters}${cohortClause}
 GROUP BY ${groupByCols}
 ORDER BY bucket ASC${q.groupBy ? ", value DESC" : ""}${limit}`;
 

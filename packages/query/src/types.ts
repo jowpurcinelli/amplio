@@ -23,6 +23,15 @@ export interface TimeRange {
   to: number;
 }
 
+/**
+ * A cohort: the set of actors who performed `eventType` (optionally matching
+ * `filters`) within the query's range. Used to restrict a query to that set.
+ */
+export interface CohortDef {
+  eventType: string;
+  filters?: PropertyFilter[];
+}
+
 /** Segmentation: event counts / unique users over time, optionally split. */
 export interface SegmentationQuery {
   projectId: string;
@@ -35,6 +44,8 @@ export interface SegmentationQuery {
   groupBy?: { scope: PropertyScope; key: string };
   /** Cap on distinct groups returned. */
   limit?: number;
+  /** Restrict to actors in this cohort. */
+  cohort?: CohortDef;
 }
 
 /** Funnel: ordered step conversion within a window. */

@@ -13,6 +13,11 @@ const propertyFilter = z.object({
 });
 
 /** Request bodies omit projectId; it is resolved from the read key. */
+const cohortDef = z.object({
+  eventType: z.string().min(1),
+  filters: z.array(propertyFilter).optional(),
+});
+
 export const segmentationBody = z.object({
   eventType: z.string().min(1),
   range: timeRange,
@@ -21,6 +26,7 @@ export const segmentationBody = z.object({
   filters: z.array(propertyFilter).optional(),
   groupBy: z.object({ scope: z.enum(["event", "user"]), key: z.string().min(1) }).optional(),
   limit: z.number().int().positive().max(1000).optional(),
+  cohort: cohortDef.optional(),
 });
 
 export const funnelBody = z.object({

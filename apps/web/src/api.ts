@@ -34,6 +34,16 @@ async function get<T>(s: Settings, path: string): Promise<T> {
   return (await res.json()) as T;
 }
 
+async function put<T>(s: Settings, path: string, body: unknown): Promise<T> {
+  const res = await fetch(`${s.apiUrl}${path}`, {
+    method: "PUT",
+    headers: { "content-type": "application/json", authorization: `Bearer ${s.readKey}` },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error(`${path} failed: ${res.status} ${await res.text()}`);
+  return (await res.json()) as T;
+}
+
 async function del(s: Settings, path: string): Promise<void> {
   const res = await fetch(`${s.apiUrl}${path}`, {
     method: "DELETE",
@@ -60,6 +70,11 @@ export interface SegmentationRow {
   group_key?: string;
   value: string;
 }
+export interface CohortDef {
+  eventType: string;
+  filters?: PropertyFilter[];
+}
+
 export const querySegmentation = (
   s: Settings,
   body: {
@@ -70,6 +85,7 @@ export const querySegmentation = (
     filters?: PropertyFilter[];
     groupBy?: { scope: PropertyScope; key: string };
     limit?: number;
+    cohort?: CohortDef;
   },
 ) => post<{ data: SegmentationRow[] }>(s, "/query/segmentation", body).then((r) => r.data);
 
@@ -140,3 +156,28 @@ export const listKeys = (s: Settings) => get<{ data: ApiKeyRow[] }>(s, "/keys").
 export const createKey = (s: Settings, body: { kind: "write" | "read"; label?: string }) =>
   post<{ data: ApiKeyRow }>(s, "/keys", body).then((r) => r.data);
 export const revokeKey = (s: Settings, id: string) => del(s, `/keys/${id}`);
+
+// --- cohorts ---
+export interface Cohort {
+  id: string;
+  name: string;
+  definition: CohortDef;
+}
+export const listCohorts = (s: Settings) => get<{ data: Cohort[] }>(s, "/cohorts").then((r) => r.data);
+export const createCohort = (s: Settings, body: { name: string; definition: CohortDef }) =>
+  post<{ data: Cohort }>(s, "/cohorts", body).then((r) => r.data);
+export const deleteCohort = (s: Settings, id: string) => del(s, `/cohorts/${id}`);
+
+// --- dashboards ---
+export interface Dashboard {
+  id: string;
+  name: string;
+  layout: string[];
+}
+export const listDashboards = (s: Settings) =>
+  get<{ data: Dashboard[] }>(s, "/dashboards").then((r) => r.data);
+export const createDashboard = (s: Settings, body: { name: string; layout: string[] }) =>
+  post<{ data: Dashboard }>(s, "/dashboards", body).then((r) => r.data);
+export const updateDashboard = (s: Settings, id: string, body: { name: string; layout: string[] }) =>
+  put<{ data: Dashboard }>(s, `/dashboards/${id}`, body).then((r) => r.data);
+export const deleteDashboard = (s: Settings, id: string) => del(s, `/dashboards/${id}`);

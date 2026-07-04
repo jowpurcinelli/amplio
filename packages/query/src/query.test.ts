@@ -49,6 +49,32 @@ describe("buildSegmentation", () => {
     expect(Object.values(q.params)).toContain(5);
   });
 
+  it("restricts to a cohort with an IN subquery when cohort is set", () => {
+    const q = buildSegmentation({
+      projectId: "proj",
+      eventType: "app_open",
+      range,
+      granularity: "day",
+      measure: "unique",
+      cohort: { eventType: "purchase", filters: [{ scope: "event", key: "plan", op: "is", values: ["pro"] }] },
+    });
+    expect(q.sql).toContain("IN (");
+    expect(q.sql).toContain("SELECT if(user_id != '', user_id, device_id) FROM events");
+    expect(Object.values(q.params)).toContain("purchase");
+    expect(Object.values(q.params)).toContainEqual(["pro"]);
+  });
+
+  it("omits the cohort subquery when no cohort is set", () => {
+    const q = buildSegmentation({
+      projectId: "proj",
+      eventType: "app_open",
+      range,
+      granularity: "day",
+      measure: "total",
+    });
+    expect(q.sql).not.toContain("IN (");
+  });
+
   it("binds user values as params, never inlining them (injection-safe)", () => {
     const evil = "'; DROP TABLE events; --";
     const q = buildSegmentation({
