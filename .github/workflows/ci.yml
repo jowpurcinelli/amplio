@@ -19,6 +19,8 @@ jobs:
           cache: pnpm
 
       - run: pnpm install --frozen-lockfile
+      # Build library packages so dependents resolve their type declarations.
       - run: pnpm --filter @amplio/schema build
+      - run: pnpm --filter @amplio/query build
       - run: pnpm typecheck
       - run: pnpm test
