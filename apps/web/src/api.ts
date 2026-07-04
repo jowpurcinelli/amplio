@@ -94,6 +94,25 @@ export const queryRetention = (
   },
 ) => post<{ data: RetentionRow[] }>(s, "/query/retention", body).then((r) => r.data);
 
+// --- user lookup ---
+export interface UserSummary {
+  first_seen: string;
+  last_seen: string;
+  total_events: string;
+  distinct_events: string;
+  latest_properties: Record<string, string>;
+}
+export interface UserActivityRow {
+  time: string;
+  event_type: string;
+  event_properties: Record<string, string>;
+  session_id: string;
+  platform: string;
+  country: string;
+}
+export const queryUser = (s: Settings, userId: string, limit = 200) =>
+  post<{ summary: UserSummary | null; activity: UserActivityRow[] }>(s, "/query/user", { userId, limit });
+
 // --- saved charts ---
 export type ChartKind = "segmentation" | "funnel" | "retention";
 export interface SavedChart {

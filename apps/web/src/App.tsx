@@ -3,17 +3,19 @@ import { loadSettings, saveSettings, type Settings as SettingsT } from "./config
 import { Segmentation } from "./views/Segmentation.js";
 import { Funnel } from "./views/Funnel.js";
 import { Retention } from "./views/Retention.js";
+import { Users } from "./views/Users.js";
 import { Library } from "./views/Library.js";
 import { Keys } from "./views/Keys.js";
 import { Settings } from "./views/Settings.js";
 import type { ChartKind, SavedChart } from "./api.js";
 
-type View = "segmentation" | "funnel" | "retention" | "library" | "keys" | "settings";
+type View = "segmentation" | "funnel" | "retention" | "users" | "library" | "keys" | "settings";
 
 const NAV: { key: View; label: string; glyph: string }[] = [
   { key: "segmentation", label: "Segmentation", glyph: "📈" },
   { key: "funnel", label: "Funnels", glyph: "🔻" },
   { key: "retention", label: "Retention", glyph: "🔁" },
+  { key: "users", label: "Users", glyph: "👤" },
   { key: "library", label: "Library", glyph: "📁" },
   { key: "keys", label: "API keys", glyph: "🔑" },
   { key: "settings", label: "Settings", glyph: "⚙️" },
@@ -23,6 +25,7 @@ const TITLES: Record<View, { title: string; sub: string }> = {
   segmentation: { title: "Segmentation", sub: "Event volume and unique users over time, broken down by any property." },
   funnel: { title: "Funnels", sub: "Ordered-step conversion within a window." },
   retention: { title: "Retention", sub: "How many users come back, by day offset from their first event." },
+  users: { title: "Users", sub: "Look up a single user or device and see their full event stream." },
   library: { title: "Library", sub: "Your saved charts. Open one to load it back into its builder." },
   keys: { title: "API keys", sub: "Write keys ingest events, read keys drive the dashboard." },
   settings: { title: "Settings", sub: "Point the dashboard at your Amplio query API." },
@@ -97,6 +100,7 @@ export default function App() {
         {view === "segmentation" && <Segmentation settings={settings} initial={initialFor("segmentation")} />}
         {view === "funnel" && <Funnel settings={settings} initial={initialFor("funnel")} />}
         {view === "retention" && <Retention settings={settings} initial={initialFor("retention")} />}
+        {view === "users" && <Users settings={settings} />}
         {view === "library" && <Library settings={settings} onOpen={openChart} />}
         {view === "keys" && <Keys settings={settings} />}
         {view === "settings" && <Settings settings={settings} onSave={save} />}

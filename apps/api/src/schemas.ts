@@ -38,6 +38,11 @@ export const retentionBody = z.object({
   filters: z.array(propertyFilter).optional(),
 });
 
+export const userBody = z.object({
+  userId: z.string().min(1).max(512),
+  limit: z.number().int().positive().max(1000).optional(),
+});
+
 export const chartBody = z.object({
   name: z.string().min(1).max(200),
   kind: z.enum(["segmentation", "funnel", "retention"]),

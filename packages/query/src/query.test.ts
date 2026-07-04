@@ -3,6 +3,7 @@ import { buildSegmentation } from "./segmentation.js";
 import { buildFunnel } from "./funnel.js";
 import { buildRetention } from "./retention.js";
 import { buildEventNames, buildPropertyKeys } from "./meta.js";
+import { buildUserActivity, buildUserSummary } from "./user.js";
 
 const range = { from: 1_700_000_000_000, to: 1_700_600_000_000 };
 
@@ -129,5 +130,29 @@ describe("meta builders", () => {
   it("buildPropertyKeys targets the right map column per scope", () => {
     expect(buildPropertyKeys("p", "signup", "event").sql).toContain("mapKeys(event_properties)");
     expect(buildPropertyKeys("p", "signup", "user").sql).toContain("mapKeys(user_properties)");
+  });
+});
+
+describe("user builders", () => {
+  it("buildUserActivity matches user_id or device_id and binds values", () => {
+    const q = buildUserActivity("proj_xyz", "u_1", 50);
+    expect(q.sql).toContain("(user_id = ");
+    expect(q.sql).toContain("OR device_id = ");
+    expect(q.sql).toContain("ORDER BY time DESC");
+    expect(Object.values(q.params)).toContain("u_1");
+    expect(Object.values(q.params)).toContain(50);
+    expect(q.sql).not.toContain("u_1");
+  });
+
+  it("buildUserActivity clamps the limit to 1000", () => {
+    expect(Object.values(buildUserActivity("p", "u", 99999).params)).toContain(1000);
+  });
+
+  it("buildUserSummary aggregates span and totals", () => {
+    const q = buildUserSummary("p", "u_1");
+    expect(q.sql).toContain("min(time)");
+    expect(q.sql).toContain("max(time)");
+    expect(q.sql).toContain("count() AS total_events");
+    expect(q.sql).toContain("uniqExact(event_type)");
   });
 });

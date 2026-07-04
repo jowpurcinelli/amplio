@@ -7,6 +7,8 @@ import {
   buildRetention,
   buildEventNames,
   buildPropertyKeys,
+  buildUserActivity,
+  buildUserSummary,
   type CompiledQuery,
 } from "@amplio/query";
 import {
@@ -31,7 +33,7 @@ import {
   type Pool,
 } from "@amplio/db";
 import type { ApiConfig } from "./config.js";
-import { funnelBody, retentionBody, segmentationBody, chartBody, dashboardBody, cohortBody, keyBody } from "./schemas.js";
+import { funnelBody, retentionBody, segmentationBody, userBody, chartBody, dashboardBody, cohortBody, keyBody } from "./schemas.js";
 
 export interface ApiDeps {
   cfg: ApiConfig;
@@ -164,6 +166,25 @@ export function buildApi(deps: ApiDeps): FastifyInstance {
     const parsed = retentionBody.safeParse(req.body);
     if (!parsed.success) return reply.status(400).send({ error: parsed.error.issues[0]?.message });
     await run(reply, buildRetention({ projectId, ...parsed.data }));
+  });
+
+  // --- user lookup ---
+  app.post("/query/user", async (req, reply) => {
+    const projectId = await auth(req, reply);
+    if (!projectId) return;
+    const parsed = userBody.safeParse(req.body);
+    if (!parsed.success) return reply.status(400).send({ error: parsed.error.issues[0]?.message });
+    const { userId, limit } = parsed.data;
+    const summary = buildUserSummary(projectId, userId);
+    const activity = buildUserActivity(projectId, userId, limit);
+    const [summaryRs, activityRs] = await Promise.all([
+      clickhouse.query({ query: summary.sql, query_params: summary.params, format: "JSONEachRow" }),
+      clickhouse.query({ query: activity.sql, query_params: activity.params, format: "JSONEachRow" }),
+    ]);
+    reply.send({
+      summary: (await summaryRs.json())[0] ?? null,
+      activity: await activityRs.json(),
+    });
   });
 
   // --- saved charts ---
