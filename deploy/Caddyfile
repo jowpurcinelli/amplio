@@ -1,0 +1,22 @@
+# Amplio single-domain reverse proxy.
+# Set AMPLIO_DOMAIN to your hostname (e.g. amplio.example.com) for automatic
+# HTTPS. Defaults to localhost for local testing.
+{$AMPLIO_DOMAIN:localhost} {
+	# SDK ingestion endpoints (Amplitude HTTP V2 compatible).
+	handle /2/httpapi* {
+		reverse_proxy ingest:8787
+	}
+	handle /batch* {
+		reverse_proxy ingest:8787
+	}
+
+	# Query API for the dashboard, mounted under /api (prefix stripped).
+	handle_path /api/* {
+		reverse_proxy api:8788
+	}
+
+	# Everything else is the dashboard SPA.
+	handle {
+		reverse_proxy web:80
+	}
+}

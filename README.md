@@ -34,7 +34,8 @@ Early and moving fast. See the [roadmap](docs/ROADMAP.md) for what is live and w
 | Query API | 🟢 done |
 | Browser SDK (also runs in Node) | 🟢 done |
 | Dashboard UI (segmentation, funnels, retention) | 🟢 done |
-| Self-host deploy | 🟡 next |
+| Self-host deploy (Docker + Caddy) | 🟢 done |
+| Public demo instance | ⚪ needs a server |
 
 ## Dashboard
 
