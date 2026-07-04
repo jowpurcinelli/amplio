@@ -10,3 +10,6 @@ coverage/
 .turbo/
 *.tsbuildinfo
 deploy/data/
+
+# maintenance watcher logs
+.maintenance/
