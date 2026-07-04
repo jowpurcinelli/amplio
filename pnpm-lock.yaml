@@ -105,6 +105,15 @@ importers:
         specifier: ^3.2.0
         version: 3.2.6(@types/node@22.20.0)
 
+  packages/sdk-browser:
+    devDependencies:
+      typescript:
+        specifier: ^5.6.3
+        version: 5.9.3
+      vitest:
+        specifier: ^3.2.0
+        version: 3.2.6(@types/node@22.20.0)
+
 packages:
 
   '@clickhouse/client@1.23.0':

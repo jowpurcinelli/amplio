@@ -27,12 +27,13 @@ Early and moving fast. See the [roadmap](docs/ROADMAP.md) for what is live and w
 
 | Component | Status |
 |-----------|--------|
-| Event schema (shared types) | 🟢 in progress |
-| Ingestion API | 🟢 in progress |
-| ClickHouse storage | 🟢 in progress |
-| Query engine (funnels/retention/segmentation) | ⚪ planned |
-| Browser + Node SDKs | ⚪ planned |
-| Dashboard UI | ⚪ planned |
+| Event schema (shared types) | 🟢 done |
+| Ingestion API (`/2/httpapi`, `/batch`) | 🟢 done |
+| ClickHouse storage | 🟢 done |
+| Query engine (funnels/retention/segmentation) | 🟢 done |
+| Query API | 🟢 done |
+| Browser SDK (also runs in Node) | 🟢 done |
+| Dashboard UI | 🟡 next |
 | Self-host deploy | ⚪ planned |
 
 ## Architecture at a glance
