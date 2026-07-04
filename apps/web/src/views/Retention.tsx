@@ -4,14 +4,29 @@ import { fetchEventNames, queryRetention } from "../api.js";
 import type { RetentionRow } from "../api.js";
 import { Field, EventSelect } from "../components/Field.js";
 import { LineChart } from "../components/LineChart.js";
+import { SaveBar } from "../components/SaveBar.js";
 import { PRESETS, presetRange, SERIES_VARS } from "../lib/time.js";
 
-export function Retention({ settings }: { settings: Settings }) {
+export function Retention({
+  settings,
+  initial,
+}: {
+  settings: Settings;
+  initial?: Record<string, unknown>;
+}) {
   const [names, setNames] = useState<string[]>([]);
   const [startEvent, setStartEvent] = useState("");
   const [returnEvent, setReturnEvent] = useState("");
   const [days, setDays] = useState(30);
   const [offsets, setOffsets] = useState(14);
+
+  useEffect(() => {
+    if (!initial) return;
+    if (typeof initial.startEvent === "string") setStartEvent(initial.startEvent);
+    if (typeof initial.returnEvent === "string") setReturnEvent(initial.returnEvent);
+    if (typeof initial.days === "number") setDays(initial.days);
+    if (typeof initial.offsets === "number") setOffsets(initial.offsets);
+  }, [initial]);
   const [rows, setRows] = useState<RetentionRow[] | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -81,6 +96,13 @@ export function Retention({ settings }: { settings: Settings }) {
             {loading ? "Running…" : "Run retention"}
           </button>
         </div>
+        {startEvent && (
+          <SaveBar
+            settings={settings}
+            kind="retention"
+            definition={{ startEvent, returnEvent, days, offsets }}
+          />
+        )}
       </div>
 
       <div className="card">

@@ -37,3 +37,24 @@ export const retentionBody = z.object({
   days: z.number().int().positive().max(180),
   filters: z.array(propertyFilter).optional(),
 });
+
+export const chartBody = z.object({
+  name: z.string().min(1).max(200),
+  kind: z.enum(["segmentation", "funnel", "retention"]),
+  definition: z.record(z.unknown()),
+});
+
+export const dashboardBody = z.object({
+  name: z.string().min(1).max(200),
+  layout: z.array(z.unknown()).default([]),
+});
+
+export const cohortBody = z.object({
+  name: z.string().min(1).max(200),
+  definition: z.record(z.unknown()),
+});
+
+export const keyBody = z.object({
+  kind: z.enum(["write", "read"]),
+  label: z.string().max(200).optional(),
+});

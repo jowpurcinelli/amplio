@@ -7,7 +7,9 @@ export interface ApiConfig {
     password: string;
     database: string;
   };
-  /** Read key -> project id. Postgres-backed in a later phase. */
+  /** Postgres connection URL. When set, keys and metadata come from the DB. */
+  databaseUrl: string | undefined;
+  /** Fallback read key -> project id when no database is configured. */
   readKeys: Map<string, string>;
 }
 
@@ -34,6 +36,7 @@ export function loadApiConfig(env: NodeJS.ProcessEnv = process.env): ApiConfig {
       password: env.CLICKHOUSE_PASSWORD ?? "",
       database: env.CLICKHOUSE_DATABASE ?? "amplio",
     },
+    databaseUrl: env.DATABASE_URL,
     readKeys: parseReadKeys(env.AMPLIO_READ_KEYS),
   };
 }

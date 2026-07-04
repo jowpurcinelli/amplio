@@ -40,9 +40,12 @@ services:
       CLICKHOUSE_DATABASE: amplio
       CLICKHOUSE_USER: default
       CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD}
+      DATABASE_URL: postgres://amplio:${POSTGRES_PASSWORD}@postgres:5432/amplio
       AMPLIO_DEV_API_KEYS: ${AMPLIO_WRITE_KEYS}
     depends_on:
       clickhouse:
+        condition: service_healthy
+      postgres:
         condition: service_healthy
 
   api:
@@ -56,9 +59,12 @@ services:
       CLICKHOUSE_DATABASE: amplio
       CLICKHOUSE_USER: default
       CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD}
+      DATABASE_URL: postgres://amplio:${POSTGRES_PASSWORD}@postgres:5432/amplio
       AMPLIO_READ_KEYS: ${AMPLIO_READ_KEYS}
     depends_on:
       clickhouse:
+        condition: service_healthy
+      postgres:
         condition: service_healthy
 
   clickhouse:

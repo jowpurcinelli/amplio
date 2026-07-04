@@ -34,6 +34,14 @@ async function get<T>(s: Settings, path: string): Promise<T> {
   return (await res.json()) as T;
 }
 
+async function del(s: Settings, path: string): Promise<void> {
+  const res = await fetch(`${s.apiUrl}${path}`, {
+    method: "DELETE",
+    headers: { authorization: `Bearer ${s.readKey}` },
+  });
+  if (!res.ok) throw new Error(`${path} failed: ${res.status}`);
+}
+
 export interface EventName {
   name: string;
   volume: string;
@@ -85,3 +93,31 @@ export const queryRetention = (
     filters?: PropertyFilter[];
   },
 ) => post<{ data: RetentionRow[] }>(s, "/query/retention", body).then((r) => r.data);
+
+// --- saved charts ---
+export type ChartKind = "segmentation" | "funnel" | "retention";
+export interface SavedChart {
+  id: string;
+  name: string;
+  kind: ChartKind;
+  definition: Record<string, unknown>;
+}
+export const listCharts = (s: Settings) =>
+  get<{ data: SavedChart[] }>(s, "/charts").then((r) => r.data);
+export const createChart = (s: Settings, body: { name: string; kind: ChartKind; definition: Record<string, unknown> }) =>
+  post<{ data: SavedChart }>(s, "/charts", body).then((r) => r.data);
+export const deleteChart = (s: Settings, id: string) => del(s, `/charts/${id}`);
+
+// --- API keys ---
+export interface ApiKeyRow {
+  id: string;
+  kind: "write" | "read";
+  key: string;
+  label: string | null;
+  createdAt: string;
+  revokedAt: string | null;
+}
+export const listKeys = (s: Settings) => get<{ data: ApiKeyRow[] }>(s, "/keys").then((r) => r.data);
+export const createKey = (s: Settings, body: { kind: "write" | "read"; label?: string }) =>
+  post<{ data: ApiKeyRow }>(s, "/keys", body).then((r) => r.data);
+export const revokeKey = (s: Settings, id: string) => del(s, `/keys/${id}`);

@@ -6,14 +6,17 @@ WORKDIR /app
 COPY pnpm-workspace.yaml package.json pnpm-lock.yaml tsconfig.base.json ./
 COPY packages/schema/package.json packages/schema/
 COPY packages/query/package.json packages/query/
+COPY packages/db/package.json packages/db/
 COPY apps/api/package.json apps/api/
-RUN pnpm install --frozen-lockfile --filter @amplio/api... --filter @amplio/query...
+RUN pnpm install --frozen-lockfile --filter @amplio/api...
 
 COPY packages/schema packages/schema
 COPY packages/query packages/query
+COPY packages/db packages/db
 COPY apps/api apps/api
 RUN pnpm --filter @amplio/schema build \
   && pnpm --filter @amplio/query build \
+  && pnpm --filter @amplio/db build \
   && pnpm --filter @amplio/api build
 
 FROM node:22-slim AS runtime

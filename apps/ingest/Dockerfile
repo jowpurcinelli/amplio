@@ -6,12 +6,16 @@ WORKDIR /app
 # Install with the full workspace manifest set so the lockfile resolves.
 COPY pnpm-workspace.yaml package.json pnpm-lock.yaml tsconfig.base.json ./
 COPY packages/schema/package.json packages/schema/
+COPY packages/db/package.json packages/db/
 COPY apps/ingest/package.json apps/ingest/
-RUN pnpm install --frozen-lockfile --filter @amplio/ingest... --filter @amplio/schema...
+RUN pnpm install --frozen-lockfile --filter @amplio/ingest...
 
 COPY packages/schema packages/schema
+COPY packages/db packages/db
 COPY apps/ingest apps/ingest
-RUN pnpm --filter @amplio/schema build && pnpm --filter @amplio/ingest build
+RUN pnpm --filter @amplio/schema build \
+  && pnpm --filter @amplio/db build \
+  && pnpm --filter @amplio/ingest build
 
 FROM node:22-slim AS runtime
 ENV NODE_ENV=production

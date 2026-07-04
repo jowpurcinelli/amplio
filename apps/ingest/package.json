@@ -13,6 +13,7 @@
     "test": "vitest run --passWithNoTests"
   },
   "dependencies": {
+    "@amplio/db": "workspace:*",
     "@amplio/schema": "workspace:*",
     "@clickhouse/client": "^1.9.1",
     "@fastify/cors": "^10.0.1",

@@ -1,28 +1,30 @@
 {
-  "name": "@amplio/api",
+  "name": "@amplio/db",
   "version": "0.0.1",
-  "description": "Amplio query and dashboard API.",
+  "description": "Amplio Postgres metadata access layer.",
   "license": "MIT",
   "type": "module",
   "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": ["dist"],
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "dev": "tsx watch src/index.ts",
-    "start": "node dist/index.js",
+    "dev": "tsc -p tsconfig.json --watch",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run --passWithNoTests"
   },
   "dependencies": {
-    "@amplio/db": "workspace:*",
-    "@amplio/query": "workspace:*",
-    "@clickhouse/client": "^1.9.1",
-    "@fastify/cors": "^10.0.1",
-    "fastify": "^5.2.0",
-    "zod": "^3.24.1"
+    "pg": "^8.13.1"
   },
   "devDependencies": {
     "@types/node": "^22.10.2",
-    "tsx": "^4.19.2",
+    "@types/pg": "^8.11.10",
     "typescript": "^5.6.3",
     "vitest": "^3.2.0"
   }

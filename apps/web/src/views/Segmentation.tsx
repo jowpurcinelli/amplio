@@ -4,6 +4,7 @@ import { fetchEventNames, fetchPropertyKeys, querySegmentation } from "../api.js
 import type { Granularity, Measure, SegmentationRow } from "../api.js";
 import { Field, EventSelect } from "../components/Field.js";
 import { LineChart, type Series } from "../components/LineChart.js";
+import { SaveBar } from "../components/SaveBar.js";
 import { PRESETS, presetRange, bucketLabel, SERIES_VARS } from "../lib/time.js";
 
 function toSeries(
@@ -34,7 +35,13 @@ function toSeries(
   return { labels, series };
 }
 
-export function Segmentation({ settings }: { settings: Settings }) {
+export function Segmentation({
+  settings,
+  initial,
+}: {
+  settings: Settings;
+  initial?: Record<string, unknown>;
+}) {
   const [names, setNames] = useState<string[]>([]);
   const [event, setEvent] = useState("");
   const [measure, setMeasure] = useState<Measure>("total");
@@ -42,6 +49,15 @@ export function Segmentation({ settings }: { settings: Settings }) {
   const [days, setDays] = useState(30);
   const [propKeys, setPropKeys] = useState<string[]>([]);
   const [breakdown, setBreakdown] = useState("");
+
+  useEffect(() => {
+    if (!initial) return;
+    if (typeof initial.eventType === "string") setEvent(initial.eventType);
+    if (initial.measure === "total" || initial.measure === "unique") setMeasure(initial.measure);
+    if (typeof initial.granularity === "string") setGranularity(initial.granularity as Granularity);
+    if (typeof initial.days === "number") setDays(initial.days);
+    if (typeof initial.breakdown === "string") setBreakdown(initial.breakdown);
+  }, [initial]);
   const [rows, setRows] = useState<SegmentationRow[] | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -128,6 +144,13 @@ export function Segmentation({ settings }: { settings: Settings }) {
             {loading ? "Running…" : "Run"}
           </button>
         </div>
+        {event && (
+          <SaveBar
+            settings={settings}
+            kind="segmentation"
+            definition={{ eventType: event, measure, granularity, days, breakdown }}
+          />
+        )}
       </div>
 
       <div className="card">

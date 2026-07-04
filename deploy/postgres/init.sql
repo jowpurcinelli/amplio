@@ -71,5 +71,7 @@ VALUES ('00000000-0000-0000-0000-0000000000a1', '00000000-0000-0000-0000-0000000
 ON CONFLICT DO NOTHING;
 
 INSERT INTO api_keys (project_id, kind, key, label)
-VALUES ('00000000-0000-0000-0000-0000000000a1', 'write', 'dev-key', 'Local dev write key')
+VALUES
+  ('00000000-0000-0000-0000-0000000000a1', 'write', 'dev-key', 'Local dev write key'),
+  ('00000000-0000-0000-0000-0000000000a1', 'read', 'dev-read-key', 'Local dev read key')
 ON CONFLICT DO NOTHING;

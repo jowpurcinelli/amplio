@@ -3,6 +3,7 @@ import type { Settings } from "../config.js";
 import { fetchEventNames, queryFunnel } from "../api.js";
 import { Field, EventSelect } from "../components/Field.js";
 import { FunnelChart, type FunnelStep } from "../components/FunnelChart.js";
+import { SaveBar } from "../components/SaveBar.js";
 import { PRESETS, presetRange } from "../lib/time.js";
 
 const WINDOWS = [
@@ -12,11 +13,26 @@ const WINDOWS = [
   { label: "30 days", seconds: 2_592_000 },
 ];
 
-export function Funnel({ settings }: { settings: Settings }) {
+export function Funnel({
+  settings,
+  initial,
+}: {
+  settings: Settings;
+  initial?: Record<string, unknown>;
+}) {
   const [names, setNames] = useState<string[]>([]);
   const [steps, setSteps] = useState<string[]>(["", ""]);
   const [windowSeconds, setWindowSeconds] = useState(86_400);
   const [days, setDays] = useState(30);
+
+  useEffect(() => {
+    if (!initial) return;
+    if (Array.isArray(initial.steps) && initial.steps.every((s) => typeof s === "string")) {
+      setSteps(initial.steps as string[]);
+    }
+    if (typeof initial.windowSeconds === "number") setWindowSeconds(initial.windowSeconds);
+    if (typeof initial.days === "number") setDays(initial.days);
+  }, [initial]);
   const [result, setResult] = useState<FunnelStep[] | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -98,6 +114,13 @@ export function Funnel({ settings }: { settings: Settings }) {
             {loading ? "Running…" : "Run funnel"}
           </button>
         </div>
+        {steps.filter(Boolean).length >= 2 && (
+          <SaveBar
+            settings={settings}
+            kind="funnel"
+            definition={{ steps: steps.filter(Boolean), windowSeconds, days }}
+          />
+        )}
       </div>
 
       <div className="card">
