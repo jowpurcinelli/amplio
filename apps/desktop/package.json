@@ -7,7 +7,7 @@
   "main": "src/main.js",
   "scripts": {
     "start": "electron .",
-    "typecheck": "node --check src/main.js && node --check src/preload.js && node --check src/lib/serve.js && node --check src/lib/stack.js",
+    "typecheck": "node --check src/main.js && node --check src/preload.js && node --check src/lib/serve.js && node --check src/lib/stack.js && node --check src/lib/telemetry.js",
     "test": "echo \"no desktop tests\""
   },
   "devDependencies": {

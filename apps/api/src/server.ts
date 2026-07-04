@@ -9,6 +9,8 @@ import {
   buildPropertyKeys,
   buildUserActivity,
   buildUserSummary,
+  buildLiveEvents,
+  buildStats,
   type CompiledQuery,
 } from "@amplio/query";
 import {
@@ -166,6 +168,38 @@ export function buildApi(deps: ApiDeps): FastifyInstance {
     const parsed = retentionBody.safeParse(req.body);
     if (!parsed.success) return reply.status(400).send({ error: parsed.error.issues[0]?.message });
     await run(reply, buildRetention({ projectId, ...parsed.data }));
+  });
+
+  // --- real-time feed + stats ---
+  app.get("/live", async (req, reply) => {
+    const projectId = await auth(req, reply);
+    if (!projectId) return;
+    const q = req.query as { since?: string; limit?: string };
+    const since = Number(q.since ?? 0) || 0;
+    const limit = Number(q.limit ?? 100) || 100;
+    const compiled = buildLiveEvents(projectId, since, limit);
+    const rs = await clickhouse.query({
+      query: compiled.sql,
+      query_params: compiled.params,
+      format: "JSONEachRow",
+    });
+    const events = (await rs.json()) as Array<{ recv: string }>;
+    const cursor = events.reduce((max, e) => Math.max(max, Number(e.recv)), since);
+    reply.send({ events, cursor });
+  });
+
+  app.get("/stats", async (req, reply) => {
+    const projectId = await auth(req, reply);
+    if (!projectId) return;
+    const compiled = buildStats(projectId, Date.now());
+    const rs = await clickhouse.query({
+      query: compiled.sql,
+      query_params: compiled.params,
+      format: "JSONEachRow",
+    });
+    const rows = (await rs.json()) as Array<{ total: string; last_hour: string }>;
+    const row = rows[0] ?? { total: "0", last_hour: "0" };
+    reply.send({ total: Number(row.total), lastHour: Number(row.last_hour) });
   });
 
   // --- user lookup ---

@@ -309,6 +309,11 @@ input:focus {
   font-variant-numeric: tabular-nums;
 }
 
+@keyframes amplio-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.35; transform: scale(0.82); }
+}
+
 .empty {
   color: var(--muted);
   padding: 40px 0;

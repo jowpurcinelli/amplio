@@ -4,6 +4,7 @@ import { buildFunnel } from "./funnel.js";
 import { buildRetention } from "./retention.js";
 import { buildEventNames, buildPropertyKeys } from "./meta.js";
 import { buildUserActivity, buildUserSummary } from "./user.js";
+import { buildLiveEvents, buildStats } from "./live.js";
 
 const range = { from: 1_700_000_000_000, to: 1_700_600_000_000 };
 
@@ -180,5 +181,27 @@ describe("user builders", () => {
     expect(q.sql).toContain("max(time)");
     expect(q.sql).toContain("count() AS total_events");
     expect(q.sql).toContain("uniqExact(event_type)");
+  });
+});
+
+describe("live builders", () => {
+  it("buildLiveEvents filters on ingestion time and orders newest first", () => {
+    const q = buildLiveEvents("p", 1_700_000_000_000, 50);
+    expect(q.sql).toContain("server_received_time_ms >");
+    expect(q.sql).toContain("ORDER BY server_received_time_ms DESC");
+    expect(Object.values(q.params)).toContain(1_700_000_000_000);
+    expect(Object.values(q.params)).toContain(50);
+  });
+
+  it("buildLiveEvents clamps the limit to 500", () => {
+    expect(Object.values(buildLiveEvents("p", 0, 99999).params)).toContain(500);
+  });
+
+  it("buildStats counts total and last hour", () => {
+    const now = 1_700_003_600_000;
+    const q = buildStats("p", now);
+    expect(q.sql).toContain("count() AS total");
+    expect(q.sql).toContain("countIf(server_received_time_ms >");
+    expect(Object.values(q.params)).toContain(now - 3_600_000);
   });
 });

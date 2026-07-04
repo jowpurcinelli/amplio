@@ -3,6 +3,7 @@ const { app, BrowserWindow, Tray, Menu, nativeImage } = require("electron");
 const path = require("node:path");
 const { serveSpa } = require("./lib/serve.js");
 const { ensureDataStores, startServices, waitForApi } = require("./lib/stack.js");
+const { emit, fetchStats } = require("./lib/telemetry.js");
 
 const REPO_ROOT = path.resolve(__dirname, "../../..");
 const WEB_DIST = path.join(REPO_ROOT, "apps/web/dist");
@@ -11,6 +12,9 @@ let win = null;
 let tray = null;
 let services = null;
 let renderer = null;
+let heartbeat = null;
+let trayPoll = null;
+let lastStats = { total: 0, lastHour: 0 };
 
 function log(msg) {
   process.stdout.write(`[amplio-desktop] ${msg}\n`);
@@ -52,17 +56,44 @@ function setupTray() {
       "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=",
     );
     tray = new Tray(icon);
-    tray.setToolTip("Amplio");
-    tray.setContextMenu(
-      Menu.buildFromTemplate([
-        { label: "Show Amplio", click: () => win && win.show() },
-        { type: "separator" },
-        { label: "Quit", click: () => app.quit() },
-      ]),
-    );
+    renderTray();
   } catch (e) {
     log(`tray unavailable: ${e.message}`);
   }
+}
+
+/** Rebuild the tray tooltip and menu from the latest stats. */
+function renderTray() {
+  if (!tray) return;
+  tray.setToolTip(`Amplio · ${lastStats.total.toLocaleString()} events`);
+  tray.setContextMenu(
+    Menu.buildFromTemplate([
+      { label: `${lastStats.total.toLocaleString()} events tracked`, enabled: false },
+      { label: `${lastStats.lastHour.toLocaleString()} in the last hour`, enabled: false },
+      { type: "separator" },
+      { label: "Show Amplio", click: () => win && win.show() },
+      { label: "Quit", click: () => app.quit() },
+    ]),
+  );
+}
+
+/** Emit the app's own usage events and keep the tray counter live. */
+function startMonitoring() {
+  emit("amplio_desktop_launched", {
+    platform: process.platform,
+    arch: process.arch,
+    electron: process.versions.electron,
+  });
+  heartbeat = setInterval(() => emit("amplio_desktop_heartbeat"), 30000);
+  if (win) win.on("focus", () => emit("amplio_desktop_focus"));
+
+  trayPoll = setInterval(async () => {
+    const s = await fetchStats();
+    if (s) {
+      lastStats = s;
+      renderTray();
+    }
+  }, 4000);
 }
 
 async function boot() {
@@ -77,6 +108,8 @@ async function boot() {
     renderer = await serveSpa(WEB_DIST, 8790);
     log(`dashboard ready at ${renderer.url}`);
     if (win) win.loadURL(renderer.url);
+    startMonitoring();
+    log("self-monitoring on; tray counter live");
   } catch (e) {
     log(`boot failed: ${e.message}`);
     if (win) win.loadURL(bootPage("Could not start Amplio.", e.message + " — is Docker running?"));
@@ -94,6 +127,8 @@ app.on("activate", () => {
 });
 
 app.on("before-quit", () => {
+  if (heartbeat) clearInterval(heartbeat);
+  if (trayPoll) clearInterval(trayPoll);
   if (services) services.stop();
   if (renderer) renderer.close();
 });

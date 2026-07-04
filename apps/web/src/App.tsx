@@ -5,6 +5,7 @@ import { Funnel } from "./views/Funnel.js";
 import { Retention } from "./views/Retention.js";
 import { Users } from "./views/Users.js";
 import { Events } from "./views/Events.js";
+import { Live } from "./views/Live.js";
 import { Dashboards } from "./views/Dashboards.js";
 import { Cohorts } from "./views/Cohorts.js";
 import { Library } from "./views/Library.js";
@@ -14,6 +15,7 @@ import type { ChartKind, SavedChart } from "./api.js";
 
 type View =
   | "events"
+  | "live"
   | "segmentation"
   | "funnel"
   | "retention"
@@ -26,6 +28,7 @@ type View =
 
 const NAV: { key: View; label: string; glyph: string }[] = [
   { key: "events", label: "Events", glyph: "📋" },
+  { key: "live", label: "Live", glyph: "🟢" },
   { key: "dashboards", label: "Dashboards", glyph: "📊" },
   { key: "segmentation", label: "Segmentation", glyph: "📈" },
   { key: "funnel", label: "Funnels", glyph: "🔻" },
@@ -39,6 +42,7 @@ const NAV: { key: View; label: string; glyph: string }[] = [
 
 const TITLES: Record<View, { title: string; sub: string }> = {
   events: { title: "Events", sub: "Every event type Amplio is receiving, by volume." },
+  live: { title: "Live", sub: "Events as they arrive, in real time." },
   segmentation: { title: "Segmentation", sub: "Event volume and unique users over time, broken down by any property." },
   funnel: { title: "Funnels", sub: "Ordered-step conversion within a window." },
   retention: { title: "Retention", sub: "How many users come back, by day offset from their first event." },
@@ -125,6 +129,7 @@ export default function App() {
         <p className="page-sub">{TITLES[view].sub}</p>
 
         {view === "events" && <Events settings={settings} onExplore={exploreEvent} />}
+        {view === "live" && <Live settings={settings} />}
         {view === "segmentation" && <Segmentation settings={settings} initial={initialFor("segmentation")} />}
         {view === "funnel" && <Funnel settings={settings} initial={initialFor("funnel")} />}
         {view === "retention" && <Retention settings={settings} initial={initialFor("retention")} />}

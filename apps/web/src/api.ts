@@ -129,6 +129,21 @@ export interface UserActivityRow {
 export const queryUser = (s: Settings, userId: string, limit = 200) =>
   post<{ summary: UserSummary | null; activity: UserActivityRow[] }>(s, "/query/user", { userId, limit });
 
+// --- real-time feed + stats ---
+export interface LiveEvent {
+  recv: string;
+  time: string;
+  event_type: string;
+  user_id: string;
+  device_id: string;
+  event_properties: Record<string, string>;
+  platform: string;
+}
+export const queryLive = (s: Settings, since = 0, limit = 100) =>
+  get<{ events: LiveEvent[]; cursor: number }>(s, `/live?since=${since}&limit=${limit}`);
+export const queryStats = (s: Settings) =>
+  get<{ total: number; lastHour: number }>(s, "/stats");
+
 // --- saved charts ---
 export type ChartKind = "segmentation" | "funnel" | "retention";
 export interface SavedChart {
