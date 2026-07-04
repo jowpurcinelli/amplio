@@ -7,9 +7,12 @@ export interface ApiConfig {
     password: string;
     database: string;
   };
-  /** Postgres connection URL. When set, keys and metadata come from the DB. */
-  databaseUrl: string | undefined;
-  /** Fallback read key -> project id when no database is configured. */
+  /**
+   * Metadata store spec: "postgres://…" or "sqlite:/path" (or "sqlite::memory:").
+   * When set, keys and metadata come from the store.
+   */
+  dbSpec: string | undefined;
+  /** Fallback read key -> project id when no store is configured. */
   readKeys: Map<string, string>;
 }
 
@@ -36,7 +39,7 @@ export function loadApiConfig(env: NodeJS.ProcessEnv = process.env): ApiConfig {
       password: env.CLICKHOUSE_PASSWORD ?? "",
       database: env.CLICKHOUSE_DATABASE ?? "amplio",
     },
-    databaseUrl: env.DATABASE_URL,
+    dbSpec: env.AMPLIO_DB ?? env.DATABASE_URL,
     readKeys: parseReadKeys(env.AMPLIO_READ_KEYS),
   };
 }

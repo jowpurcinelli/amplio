@@ -1,0 +1,83 @@
+export type KeyKind = "write" | "read";
+
+export interface ResolvedKey {
+  projectId: string;
+  kind: KeyKind;
+}
+export interface ApiKey {
+  id: string;
+  projectId: string;
+  kind: KeyKind;
+  key: string;
+  label: string | null;
+  createdAt: string;
+  revokedAt: string | null;
+}
+export interface Chart {
+  id: string;
+  projectId: string;
+  name: string;
+  kind: string;
+  definition: unknown;
+  createdAt: string;
+  updatedAt: string;
+}
+export interface Dashboard {
+  id: string;
+  projectId: string;
+  name: string;
+  layout: unknown;
+  createdAt: string;
+  updatedAt: string;
+}
+export interface Cohort {
+  id: string;
+  projectId: string;
+  name: string;
+  definition: unknown;
+  createdAt: string;
+}
+
+export interface ChartInput {
+  name: string;
+  kind: string;
+  definition: unknown;
+}
+export interface DashboardInput {
+  name: string;
+  layout: unknown;
+}
+export interface CohortInput {
+  name: string;
+  definition: unknown;
+}
+
+/**
+ * The metadata store. One interface, two backends: Postgres (self-host, multi
+ * user) and SQLite (embedded, for the desktop app and single-node setups).
+ * Consumers depend only on this, never on a specific driver.
+ */
+export interface Store {
+  resolveKey(key: string): Promise<ResolvedKey | null>;
+  listApiKeys(projectId: string): Promise<ApiKey[]>;
+  createApiKey(projectId: string, kind: KeyKind, label: string | null): Promise<ApiKey>;
+  revokeApiKey(projectId: string, id: string): Promise<boolean>;
+
+  listCharts(projectId: string): Promise<Chart[]>;
+  getChart(projectId: string, id: string): Promise<Chart | null>;
+  createChart(projectId: string, input: ChartInput): Promise<Chart>;
+  updateChart(projectId: string, id: string, input: ChartInput): Promise<Chart | null>;
+  deleteChart(projectId: string, id: string): Promise<boolean>;
+
+  listDashboards(projectId: string): Promise<Dashboard[]>;
+  getDashboard(projectId: string, id: string): Promise<Dashboard | null>;
+  createDashboard(projectId: string, input: DashboardInput): Promise<Dashboard>;
+  updateDashboard(projectId: string, id: string, input: DashboardInput): Promise<Dashboard | null>;
+  deleteDashboard(projectId: string, id: string): Promise<boolean>;
+
+  listCohorts(projectId: string): Promise<Cohort[]>;
+  createCohort(projectId: string, input: CohortInput): Promise<Cohort>;
+  deleteCohort(projectId: string, id: string): Promise<boolean>;
+
+  close(): Promise<void>;
+}

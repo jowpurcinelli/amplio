@@ -2,7 +2,7 @@ import Fastify, { type FastifyInstance } from "fastify";
 import cors from "@fastify/cors";
 import { ingestRequest, type IngestResponse, type StoredEvent } from "@amplio/schema";
 import type { ClickHouseClient } from "@clickhouse/client";
-import type { Pool } from "@amplio/db";
+import type { Store } from "@amplio/db";
 import type { Config } from "./config.js";
 import { KeyResolver } from "./auth.js";
 import { normalize } from "./normalize.js";
@@ -11,7 +11,7 @@ import { insertEvents } from "./clickhouse.js";
 export interface ServerDeps {
   cfg: Config;
   clickhouse: ClickHouseClient;
-  pool?: Pool | null;
+  store?: Store | null;
   /** Injectable clock for deterministic tests. Returns epoch ms. */
   now?: () => number;
 }
@@ -19,7 +19,7 @@ export interface ServerDeps {
 export function buildServer(deps: ServerDeps): FastifyInstance {
   const { cfg, clickhouse } = deps;
   const now = deps.now ?? (() => Date.now());
-  const keys = new KeyResolver(cfg, deps.pool ?? null);
+  const keys = new KeyResolver(cfg, deps.store ?? null);
 
   const app = Fastify({
     logger: { level: process.env.LOG_LEVEL ?? "info" },

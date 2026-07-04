@@ -7,8 +7,9 @@ export interface Config {
     password: string;
     database: string;
   };
-  /** Postgres connection URL. When set, write keys resolve from the DB. */
-  databaseUrl: string | undefined;
+  /** Metadata store spec ("postgres://…" or "sqlite:/path"). When set, write
+   * keys resolve from the store. */
+  dbSpec: string | undefined;
   /**
    * Fallback API keys used when no database is configured (local dev).
    * Format: "key:project_id,key2:project_id2".
@@ -43,7 +44,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
       password: env.CLICKHOUSE_PASSWORD ?? "",
       database: env.CLICKHOUSE_DATABASE ?? "amplio",
     },
-    databaseUrl: env.DATABASE_URL,
+    dbSpec: env.AMPLIO_DB ?? env.DATABASE_URL,
     devApiKeys: parseDevKeys(env.AMPLIO_DEV_API_KEYS),
     flush: {
       maxBatch: Number(env.FLUSH_MAX_BATCH ?? 1000),

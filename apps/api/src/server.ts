@@ -13,34 +13,14 @@ import {
   buildStats,
   type CompiledQuery,
 } from "@amplio/query";
-import {
-  makePool,
-  resolveKey,
-  listApiKeys,
-  createApiKey,
-  revokeApiKey,
-  listCharts,
-  getChart,
-  createChart,
-  updateChart,
-  deleteChart,
-  listDashboards,
-  getDashboard,
-  createDashboard,
-  updateDashboard,
-  deleteDashboard,
-  listCohorts,
-  createCohort,
-  deleteCohort,
-  type Pool,
-} from "@amplio/db";
+import { makeStore, type Store } from "@amplio/db";
 import type { ApiConfig } from "./config.js";
 import { funnelBody, retentionBody, segmentationBody, userBody, chartBody, dashboardBody, cohortBody, keyBody } from "./schemas.js";
 
 export interface ApiDeps {
   cfg: ApiConfig;
   clickhouse?: ClickHouseClient;
-  pool?: Pool | null;
+  store?: Store | null;
 }
 
 export function makeApiClient(cfg: ApiConfig): ClickHouseClient {
@@ -69,7 +49,7 @@ class KeyCache {
 export function buildApi(deps: ApiDeps): FastifyInstance {
   const { cfg } = deps;
   const clickhouse = deps.clickhouse ?? makeApiClient(cfg);
-  const pool = deps.pool ?? makePool(cfg.databaseUrl);
+  const store = deps.store ?? makeStore(cfg.dbSpec);
   const cache = new KeyCache();
 
   const app = Fastify({ logger: { level: process.env.LOG_LEVEL ?? "info" } });
@@ -85,13 +65,13 @@ export function buildApi(deps: ApiDeps): FastifyInstance {
     if (!key) return null;
     const cached = cache.get(key);
     if (cached) return cached;
-    if (pool) {
-      const resolved = await resolveKey(pool, key);
+    if (store) {
+      const resolved = await store.resolveKey(key);
       if (resolved && resolved.kind === "read") {
         cache.set(key, resolved.projectId);
         return resolved.projectId;
       }
-      // fall through to env fallback so local dev works without a DB row
+      // fall through to env fallback so local dev works without a store row
     }
     const envProject = cfg.readKeys.get(key);
     if (envProject) {
@@ -111,12 +91,12 @@ export function buildApi(deps: ApiDeps): FastifyInstance {
     return projectId;
   };
 
-  const requirePool = (reply: FastifyReply): Pool | null => {
-    if (!pool) {
-      reply.status(503).send({ error: "metadata store not configured (set DATABASE_URL)" });
+  const requireStore = (reply: FastifyReply): Store | null => {
+    if (!store) {
+      reply.status(503).send({ error: "metadata store not configured (set AMPLIO_DB or DATABASE_URL)" });
       return null;
     }
-    return pool;
+    return store;
   };
 
   const run = async (reply: FastifyReply, compiled: CompiledQuery) => {
@@ -128,7 +108,7 @@ export function buildApi(deps: ApiDeps): FastifyInstance {
     reply.send({ data: await rs.json() });
   };
 
-  app.get("/health", async () => ({ status: "ok", service: "amplio-api", metadata: Boolean(pool) }));
+  app.get("/health", async () => ({ status: "ok", service: "amplio-api", metadata: Boolean(store) }));
 
   // --- metadata pickers ---
   app.get("/meta/events", async (req, reply) => {
@@ -225,45 +205,45 @@ export function buildApi(deps: ApiDeps): FastifyInstance {
   app.get("/charts", async (req, reply) => {
     const projectId = await auth(req, reply);
     if (!projectId) return;
-    const p = requirePool(reply);
+    const p = requireStore(reply);
     if (!p) return;
-    reply.send({ data: await listCharts(p, projectId) });
+    reply.send({ data: await p.listCharts(projectId) });
   });
   app.post("/charts", async (req, reply) => {
     const projectId = await auth(req, reply);
     if (!projectId) return;
-    const p = requirePool(reply);
+    const p = requireStore(reply);
     if (!p) return;
     const parsed = chartBody.safeParse(req.body);
     if (!parsed.success) return reply.status(400).send({ error: parsed.error.issues[0]?.message });
-    reply.send({ data: await createChart(p, projectId, parsed.data) });
+    reply.send({ data: await p.createChart(projectId, parsed.data) });
   });
   app.get("/charts/:id", async (req, reply) => {
     const projectId = await auth(req, reply);
     if (!projectId) return;
-    const p = requirePool(reply);
+    const p = requireStore(reply);
     if (!p) return;
-    const chart = await getChart(p, projectId, (req.params as { id: string }).id);
+    const chart = await p.getChart(projectId, (req.params as { id: string }).id);
     if (!chart) return reply.status(404).send({ error: "not found" });
     reply.send({ data: chart });
   });
   app.put("/charts/:id", async (req, reply) => {
     const projectId = await auth(req, reply);
     if (!projectId) return;
-    const p = requirePool(reply);
+    const p = requireStore(reply);
     if (!p) return;
     const parsed = chartBody.safeParse(req.body);
     if (!parsed.success) return reply.status(400).send({ error: parsed.error.issues[0]?.message });
-    const chart = await updateChart(p, projectId, (req.params as { id: string }).id, parsed.data);
+    const chart = await p.updateChart(projectId, (req.params as { id: string }).id, parsed.data);
     if (!chart) return reply.status(404).send({ error: "not found" });
     reply.send({ data: chart });
   });
   app.delete("/charts/:id", async (req, reply) => {
     const projectId = await auth(req, reply);
     if (!projectId) return;
-    const p = requirePool(reply);
+    const p = requireStore(reply);
     if (!p) return;
-    const ok = await deleteChart(p, projectId, (req.params as { id: string }).id);
+    const ok = await p.deleteChart(projectId, (req.params as { id: string }).id);
     reply.status(ok ? 200 : 404).send({ ok });
   });
 
@@ -271,45 +251,45 @@ export function buildApi(deps: ApiDeps): FastifyInstance {
   app.get("/dashboards", async (req, reply) => {
     const projectId = await auth(req, reply);
     if (!projectId) return;
-    const p = requirePool(reply);
+    const p = requireStore(reply);
     if (!p) return;
-    reply.send({ data: await listDashboards(p, projectId) });
+    reply.send({ data: await p.listDashboards(projectId) });
   });
   app.post("/dashboards", async (req, reply) => {
     const projectId = await auth(req, reply);
     if (!projectId) return;
-    const p = requirePool(reply);
+    const p = requireStore(reply);
     if (!p) return;
     const parsed = dashboardBody.safeParse(req.body);
     if (!parsed.success) return reply.status(400).send({ error: parsed.error.issues[0]?.message });
-    reply.send({ data: await createDashboard(p, projectId, parsed.data) });
+    reply.send({ data: await p.createDashboard(projectId, parsed.data) });
   });
   app.get("/dashboards/:id", async (req, reply) => {
     const projectId = await auth(req, reply);
     if (!projectId) return;
-    const p = requirePool(reply);
+    const p = requireStore(reply);
     if (!p) return;
-    const dash = await getDashboard(p, projectId, (req.params as { id: string }).id);
+    const dash = await p.getDashboard(projectId, (req.params as { id: string }).id);
     if (!dash) return reply.status(404).send({ error: "not found" });
     reply.send({ data: dash });
   });
   app.put("/dashboards/:id", async (req, reply) => {
     const projectId = await auth(req, reply);
     if (!projectId) return;
-    const p = requirePool(reply);
+    const p = requireStore(reply);
     if (!p) return;
     const parsed = dashboardBody.safeParse(req.body);
     if (!parsed.success) return reply.status(400).send({ error: parsed.error.issues[0]?.message });
-    const dash = await updateDashboard(p, projectId, (req.params as { id: string }).id, parsed.data);
+    const dash = await p.updateDashboard(projectId, (req.params as { id: string }).id, parsed.data);
     if (!dash) return reply.status(404).send({ error: "not found" });
     reply.send({ data: dash });
   });
   app.delete("/dashboards/:id", async (req, reply) => {
     const projectId = await auth(req, reply);
     if (!projectId) return;
-    const p = requirePool(reply);
+    const p = requireStore(reply);
     if (!p) return;
-    const ok = await deleteDashboard(p, projectId, (req.params as { id: string }).id);
+    const ok = await p.deleteDashboard(projectId, (req.params as { id: string }).id);
     reply.status(ok ? 200 : 404).send({ ok });
   });
 
@@ -317,25 +297,25 @@ export function buildApi(deps: ApiDeps): FastifyInstance {
   app.get("/cohorts", async (req, reply) => {
     const projectId = await auth(req, reply);
     if (!projectId) return;
-    const p = requirePool(reply);
+    const p = requireStore(reply);
     if (!p) return;
-    reply.send({ data: await listCohorts(p, projectId) });
+    reply.send({ data: await p.listCohorts(projectId) });
   });
   app.post("/cohorts", async (req, reply) => {
     const projectId = await auth(req, reply);
     if (!projectId) return;
-    const p = requirePool(reply);
+    const p = requireStore(reply);
     if (!p) return;
     const parsed = cohortBody.safeParse(req.body);
     if (!parsed.success) return reply.status(400).send({ error: parsed.error.issues[0]?.message });
-    reply.send({ data: await createCohort(p, projectId, parsed.data) });
+    reply.send({ data: await p.createCohort(projectId, parsed.data) });
   });
   app.delete("/cohorts/:id", async (req, reply) => {
     const projectId = await auth(req, reply);
     if (!projectId) return;
-    const p = requirePool(reply);
+    const p = requireStore(reply);
     if (!p) return;
-    const ok = await deleteCohort(p, projectId, (req.params as { id: string }).id);
+    const ok = await p.deleteCohort(projectId, (req.params as { id: string }).id);
     reply.status(ok ? 200 : 404).send({ ok });
   });
 
@@ -343,25 +323,25 @@ export function buildApi(deps: ApiDeps): FastifyInstance {
   app.get("/keys", async (req, reply) => {
     const projectId = await auth(req, reply);
     if (!projectId) return;
-    const p = requirePool(reply);
+    const p = requireStore(reply);
     if (!p) return;
-    reply.send({ data: await listApiKeys(p, projectId) });
+    reply.send({ data: await p.listApiKeys(projectId) });
   });
   app.post("/keys", async (req, reply) => {
     const projectId = await auth(req, reply);
     if (!projectId) return;
-    const p = requirePool(reply);
+    const p = requireStore(reply);
     if (!p) return;
     const parsed = keyBody.safeParse(req.body);
     if (!parsed.success) return reply.status(400).send({ error: parsed.error.issues[0]?.message });
-    reply.send({ data: await createApiKey(p, projectId, parsed.data.kind, parsed.data.label ?? null) });
+    reply.send({ data: await p.createApiKey(projectId, parsed.data.kind, parsed.data.label ?? null) });
   });
   app.delete("/keys/:id", async (req, reply) => {
     const projectId = await auth(req, reply);
     if (!projectId) return;
-    const p = requirePool(reply);
+    const p = requireStore(reply);
     if (!p) return;
-    const ok = await revokeApiKey(p, projectId, (req.params as { id: string }).id);
+    const ok = await p.revokeApiKey(projectId, (req.params as { id: string }).id);
     reply.status(ok ? 200 : 404).send({ ok });
   });
 
