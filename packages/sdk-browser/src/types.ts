@@ -33,6 +33,8 @@ export interface AmplioConfig {
   maxRetries?: number;
   /** New session after this much inactivity, in ms. Default 30 minutes. */
   sessionTimeoutMs?: number;
+  /** Platform tag attached to every event. Default "Web". */
+  platform?: string;
   /** Override storage (defaults to localStorage, else in-memory). */
   storage?: KeyValueStore;
   /** Override transport (defaults to fetch). */

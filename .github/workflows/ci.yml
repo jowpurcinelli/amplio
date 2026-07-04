@@ -23,5 +23,6 @@ jobs:
       - run: pnpm --filter @amplio/schema build
       - run: pnpm --filter @amplio/query build
       - run: pnpm --filter @amplio/db build
+      - run: pnpm --filter @amplio/sdk-browser build
       - run: pnpm typecheck
       - run: pnpm test

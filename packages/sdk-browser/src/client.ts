@@ -56,6 +56,7 @@ export class AmplioClient {
   private timer: ReturnType<typeof setInterval> | null = null;
   private deviceId: string;
   private userId: string | null;
+  private readonly platform: string;
 
   constructor(private readonly config: AmplioConfig) {
     this.store = resolveStore(config.storage);
@@ -65,6 +66,7 @@ export class AmplioClient {
     this.maxRetries = config.maxRetries ?? DEFAULTS.maxRetries;
     this.sessionTimeoutMs = config.sessionTimeoutMs ?? DEFAULTS.sessionTimeoutMs;
     this.retryBaseMs = DEFAULTS.retryBaseMs;
+    this.platform = config.platform ?? "Web";
 
     this.deviceId = this.store.get(KEY.device) ?? this.newDeviceId();
     this.userId = this.store.get(KEY.user);
@@ -117,7 +119,7 @@ export class AmplioClient {
       time: now,
       session_id: this.refreshSession(now),
       insert_id: uuid(),
-      platform: "Web",
+      platform: this.platform,
       ...(this.userId ? { user_id: this.userId } : {}),
       ...(eventProperties ? { event_properties: eventProperties } : {}),
       ...(userProperties ? { user_properties: userProperties } : {}),

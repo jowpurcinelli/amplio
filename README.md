@@ -32,8 +32,9 @@ Early and moving fast. See the [roadmap](docs/ROADMAP.md) for what is live and w
 | ClickHouse storage | 🟢 done |
 | Query engine (funnels/retention/segmentation) | 🟢 done |
 | Query API | 🟢 done |
-| Browser SDK (also runs in Node) | 🟢 done |
-| Dashboard UI (segmentation, funnels, retention) | 🟢 done |
+| Browser SDK + Node SDK | 🟢 done |
+| Dashboard (segmentation, funnels, retention, user lookup) | 🟢 done |
+| Saved charts, cohorts, API-key management (Postgres) | 🟢 done |
 | Self-host deploy (Docker + Caddy) | 🟢 done |
 | Public demo instance | ⚪ needs a server |
 
