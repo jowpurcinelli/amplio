@@ -5,11 +5,12 @@
   "description": "Amplio desktop app. Local-first product analytics you run yourself.",
   "license": "MIT",
   "author": "jowpurcinelli",
+  "repository": "https://github.com/jowpurcinelli/amplio",
   "main": "src/main.js",
   "scripts": {
     "start": "electron .",
     "bundle": "node build.mjs",
-    "dist": "node build.mjs && electron-builder",
+    "dist": "node build.mjs && electron-builder --publish never",
     "typecheck": "node --check src/main.js && node --check src/preload.js && node --check src/lib/serve.js && node --check src/lib/stack.js && node --check src/lib/telemetry.js && node --check src/lib/clickhouse.js && node --check build.mjs",
     "test": "echo \"no desktop tests\""
   },
