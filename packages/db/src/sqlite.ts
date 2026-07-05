@@ -27,7 +27,13 @@ export class SqliteStore implements Store {
 
   constructor(path: string) {
     this.db = new DatabaseSync(path);
-    if (path !== ":memory:") this.db.exec("PRAGMA journal_mode = WAL");
+    if (path !== ":memory:") {
+      // busy_timeout MUST come first: several processes (ingest + api) open the
+      // same file and the WAL switch + migration take locks. Without it, a
+      // concurrent open fails immediately with "database is locked".
+      this.db.exec("PRAGMA busy_timeout = 5000");
+      this.db.exec("PRAGMA journal_mode = WAL");
+    }
     this.migrate();
   }
 

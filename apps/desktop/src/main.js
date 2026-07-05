@@ -2,8 +2,11 @@
 const { app, BrowserWindow, Tray, Menu, nativeImage } = require("electron");
 const path = require("node:path");
 const { serveSpa } = require("./lib/serve.js");
-const { ensureDataStores, startServices, waitForApi } = require("./lib/stack.js");
+const { startServices, waitForApi } = require("./lib/stack.js");
+const { startClickHouse } = require("./lib/clickhouse.js");
 const { emit, fetchStats } = require("./lib/telemetry.js");
+
+app.setName("Amplio"); // keeps userData at ~/Library/Application Support/Amplio
 
 const REPO_ROOT = path.resolve(__dirname, "../../..");
 const WEB_DIST = path.join(REPO_ROOT, "apps/web/dist");
@@ -11,6 +14,7 @@ const WEB_DIST = path.join(REPO_ROOT, "apps/web/dist");
 let win = null;
 let tray = null;
 let services = null;
+let clickhouse = null;
 let renderer = null;
 let heartbeat = null;
 let trayPoll = null;
@@ -28,8 +32,17 @@ function bootPage(title, detail) {
     .dot{width:16px;height:16px;border-radius:5px;background:linear-gradient(135deg,#2a78d6,#4a3aa7);display:inline-block;vertical-align:middle;margin-right:10px}
     h1{font-size:22px;font-weight:700;letter-spacing:-.02em;margin:0 0 8px}
     p{color:#c3c2b7;line-height:1.5}
-  </style></head><body><div class="box"><h1><span class="dot"></span>Amplio</h1><p>${title}</p><p style="color:#898781;font-size:13px">${detail || ""}</p></div></body></html>`;
+  </style></head><body><div class="box"><h1><span class="dot"></span>Amplio</h1><p>${title}</p><p id="detail" style="color:#898781;font-size:13px">${detail || ""}</p></div></body></html>`;
   return "data:text/html;charset=utf-8," + encodeURIComponent(html);
+}
+
+/** Update the boot screen's detail line without a full reload. */
+function setBootDetail(text) {
+  if (win && !win.isDestroyed()) {
+    win.webContents
+      .executeJavaScript(`(()=>{const el=document.getElementById('detail');if(el)el.textContent=${JSON.stringify(text)};})()`)
+      .catch(() => {});
+  }
 }
 
 function createWindow() {
@@ -99,9 +112,13 @@ function startMonitoring() {
 async function boot() {
   createWindow();
   setupTray();
+  const baseDir = app.getPath("userData");
   try {
-    await ensureDataStores(REPO_ROOT, log);
-    services = startServices(REPO_ROOT, log);
+    clickhouse = await startClickHouse(baseDir, log, (frac) =>
+      setBootDetail(`Downloading ClickHouse… ${Math.round(frac * 100)}%`),
+    );
+    setBootDetail("Starting services…");
+    services = await startServices(REPO_ROOT, baseDir, log);
     log("waiting for api…");
     const ok = await waitForApi();
     if (!ok) throw new Error("the query API did not become healthy");
@@ -112,7 +129,7 @@ async function boot() {
     log("self-monitoring on; tray counter live");
   } catch (e) {
     log(`boot failed: ${e.message}`);
-    if (win) win.loadURL(bootPage("Could not start Amplio.", e.message + " — is Docker running?"));
+    if (win) win.loadURL(bootPage("Could not start Amplio.", e.message));
   }
 }
 
@@ -130,6 +147,7 @@ app.on("before-quit", () => {
   if (heartbeat) clearInterval(heartbeat);
   if (trayPoll) clearInterval(trayPoll);
   if (services) services.stop();
+  if (clickhouse) clickhouse.stop();
   if (renderer) renderer.close();
 });
 

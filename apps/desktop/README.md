@@ -5,19 +5,22 @@ locally and gives you the dashboard, no hosting required.
 
 On launch it:
 
-1. Brings up the data stores (ClickHouse + Postgres) via the repo's docker
-   compose.
-2. Spawns the ingest and query services as child processes.
-3. Serves the dashboard and opens it, auto-pointed at your local API.
-4. Adds a system-tray entry.
+1. Downloads a local ClickHouse binary (~160MB, one time) and starts it.
+2. Opens an embedded SQLite database for metadata (no server, no Postgres).
+3. Spawns the ingest and query services as child processes.
+4. Serves the dashboard and opens it, auto-pointed at your local API.
+5. Adds a system-tray entry with a live event counter.
 
-Everything runs on your machine. Your events never leave it.
+Everything runs on your machine. No Docker. Your events never leave it.
 
 ## Requirements
 
 - Node 20+ and pnpm (for development)
-- Docker (for the local ClickHouse + Postgres; a Docker-free mode using an
-  embedded metadata store and a managed ClickHouse binary is on the roadmap)
+- Enough disk for the ClickHouse binary (~160MB) plus your event data
+
+Data lives under the app's user-data directory (on macOS,
+`~/Library/Application Support/Amplio`): the ClickHouse binary and data, the
+SQLite metadata file, and service logs.
 
 ## Run it (development)
 
@@ -36,8 +39,8 @@ pnpm --filter @amplio/web build
 pnpm --filter @amplio/desktop start
 ```
 
-First launch pulls Docker images, which can take a minute; later launches are
-quick. Populate demo data with `node scripts/seed-demo.mjs`.
+First launch downloads the ClickHouse binary, which can take a minute; later
+launches are quick. Populate demo data with `node scripts/seed-demo.mjs`.
 
 ## Troubleshooting
 
@@ -46,10 +49,9 @@ quick. Populate demo data with `node scripts/seed-demo.mjs`.
   `pnpm rebuild electron`, or unzip the cached archive from
   `~/Library/Caches/electron/*/electron-*.zip` into
   `node_modules/.pnpm/electron@*/node_modules/electron/dist/`.
-- **"Could not start Amplio"**: Docker is not running. Start Docker and reopen.
+- **Slow first launch**: it is downloading ClickHouse (~160MB). Subsequent
+  launches reuse it.
 
 ## Roadmap
 
-- Real-time monitoring: a live event feed and a tray counter (E2).
-- Docker-free: SQLite metadata and a managed ClickHouse binary (E3).
 - Packaged installers for macOS, Windows, and Linux (E4).
