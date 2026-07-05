@@ -13,3 +13,7 @@ deploy/data/
 
 # maintenance watcher logs
 .maintenance/
+
+# desktop packaging output
+apps/desktop/release/
+apps/desktop/build/

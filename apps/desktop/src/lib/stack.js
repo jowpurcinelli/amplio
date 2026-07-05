@@ -37,7 +37,7 @@ async function waitUntil(fn, { timeoutMs = 30000, intervalMs = 500 } = {}) {
  * ingest is healthy, so the two never race to create/migrate the same file.
  * Child output goes to <baseDir>/logs for debugging.
  */
-async function startServices(repoRoot, baseDir, log) {
+async function startServices(scripts, baseDir, log) {
   const nodeExe = process.execPath;
   const logDir = path.join(baseDir, "logs");
   fs.mkdirSync(logDir, { recursive: true });
@@ -53,23 +53,19 @@ async function startServices(repoRoot, baseDir, log) {
 
   const spawnSvc = (name, script, env) => {
     const out = fs.openSync(path.join(logDir, `${name}.log`), "a");
-    const proc = spawn(nodeExe, [path.join(repoRoot, script)], {
-      cwd: path.join(repoRoot, path.dirname(script)),
-      env,
-      stdio: ["ignore", out, out],
-    });
+    const proc = spawn(nodeExe, [script], { cwd: baseDir, env, stdio: ["ignore", out, out] });
     proc.on("error", (e) => log(`${name} error: ${e.message}`));
     return proc;
   };
 
-  const ingest = spawnSvc("ingest", "apps/ingest/dist/index.js", {
+  const ingest = spawnSvc("ingest", scripts.ingest, {
     ...baseEnv,
     PORT: "8787",
     AMPLIO_DEV_API_KEYS: "dev-key:dev-project",
   });
   await waitUntil(() => httpOk("http://127.0.0.1:8787/health"), { timeoutMs: 30000 });
 
-  const api = spawnSvc("api", "apps/api/dist/index.js", {
+  const api = spawnSvc("api", scripts.api, {
     ...baseEnv,
     API_PORT: "8788",
     AMPLIO_READ_KEYS: "dev-read-key:dev-project",

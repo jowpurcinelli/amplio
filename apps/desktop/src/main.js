@@ -8,8 +8,26 @@ const { emit, fetchStats } = require("./lib/telemetry.js");
 
 app.setName("Amplio"); // keeps userData at ~/Library/Application Support/Amplio
 
+// In dev, run the services and dashboard from the monorepo's build outputs.
+// When packaged, they are bundled under Resources/build (see build.mjs +
+// electron-builder extraResources), self-contained with no node_modules.
 const REPO_ROOT = path.resolve(__dirname, "../../..");
-const WEB_DIST = path.join(REPO_ROOT, "apps/web/dist");
+function resolvePaths() {
+  if (app.isPackaged) {
+    const base = path.join(process.resourcesPath, "build");
+    return {
+      web: path.join(base, "web"),
+      scripts: { ingest: path.join(base, "ingest.cjs"), api: path.join(base, "api.cjs") },
+    };
+  }
+  return {
+    web: path.join(REPO_ROOT, "apps/web/dist"),
+    scripts: {
+      ingest: path.join(REPO_ROOT, "apps/ingest/dist/index.js"),
+      api: path.join(REPO_ROOT, "apps/api/dist/index.js"),
+    },
+  };
+}
 
 let win = null;
 let tray = null;
@@ -113,16 +131,17 @@ async function boot() {
   createWindow();
   setupTray();
   const baseDir = app.getPath("userData");
+  const paths = resolvePaths();
   try {
     clickhouse = await startClickHouse(baseDir, log, (frac) =>
       setBootDetail(`Downloading ClickHouse… ${Math.round(frac * 100)}%`),
     );
     setBootDetail("Starting services…");
-    services = await startServices(REPO_ROOT, baseDir, log);
+    services = await startServices(paths.scripts, baseDir, log);
     log("waiting for api…");
     const ok = await waitForApi();
     if (!ok) throw new Error("the query API did not become healthy");
-    renderer = await serveSpa(WEB_DIST, 8790);
+    renderer = await serveSpa(paths.web, 8790);
     log(`dashboard ready at ${renderer.url}`);
     if (win) win.loadURL(renderer.url);
     startMonitoring();
@@ -151,4 +170,4 @@ app.on("before-quit", () => {
   if (renderer) renderer.close();
 });
 
-module.exports = { REPO_ROOT, WEB_DIST };
+module.exports = { REPO_ROOT, resolvePaths };

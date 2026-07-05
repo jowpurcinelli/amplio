@@ -13,9 +13,26 @@ On launch it:
 
 Everything runs on your machine. No Docker. Your events never leave it.
 
-## Requirements
+## Download
 
-- Node 20+ and pnpm (for development)
+Prebuilt installers are attached to the GitHub releases (macOS `.dmg` today;
+Linux `AppImage`/`.deb` from the same build config). Download, open, and run.
+First launch downloads ClickHouse (~160MB); after that it is offline and fast.
+
+## Build an installer yourself
+
+```bash
+pnpm --filter @amplio/schema build && pnpm --filter @amplio/query build \
+  && pnpm --filter @amplio/db build && pnpm --filter @amplio/ingest build \
+  && pnpm --filter @amplio/api build && pnpm --filter @amplio/web build
+pnpm --filter @amplio/desktop dist   # bundles services + runs electron-builder
+```
+
+The result lands in `apps/desktop/release/`.
+
+## Requirements (development)
+
+- Node 20+ and pnpm
 - Enough disk for the ClickHouse binary (~160MB) plus your event data
 
 Data lives under the app's user-data directory (on macOS,
