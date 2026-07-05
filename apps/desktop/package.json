@@ -24,6 +24,7 @@
     "productName": "Amplio",
     "directories": { "buildResources": "assets", "output": "release" },
     "npmRebuild": false,
+    "artifactName": "${productName}-${version}-${arch}.${ext}",
     "files": ["src/**/*", "package.json"],
     "extraResources": [{ "from": "build", "to": "build" }],
     "mac": {

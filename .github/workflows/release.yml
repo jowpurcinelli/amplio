@@ -38,9 +38,13 @@ jobs:
       # Bundle the services and package the app for this runner's OS.
       # macOS signing + notarization happen only if the Apple secrets are set;
       # otherwise the build is unsigned.
+      # Build unsigned by default. To ship signed + notarized macOS builds, add
+      # the Apple secrets (see apps/desktop/README.md) and set the repo variable
+      # AMPLIO_MAC_SIGN=true.
       - run: pnpm --filter @amplio/desktop dist
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CSC_IDENTITY_AUTO_DISCOVERY: ${{ vars.AMPLIO_MAC_SIGN == 'true' }}
           CSC_LINK: ${{ secrets.CSC_LINK }}
           CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
           APPLE_ID: ${{ secrets.APPLE_ID }}
