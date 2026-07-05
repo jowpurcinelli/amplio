@@ -40,9 +40,16 @@ Early and moving fast. See the [roadmap](docs/ROADMAP.md) for what is live and w
 
 ## Desktop app
 
-Prefer a native app? `apps/desktop` is an Electron app that runs the entire
-stack locally and opens the dashboard in its own window, no hosting required.
-See [apps/desktop/README.md](apps/desktop/README.md).
+Prefer a native app? Amplio ships as a desktop app that runs the entire stack
+on your machine with **no Docker and nothing to configure**. It manages a local
+ClickHouse and an embedded SQLite for you, and opens the dashboard in its own
+window. Your data never leaves your computer.
+
+**[Download the latest release](https://github.com/jowpurcinelli/amplio/releases/latest)**
+(macOS `.dmg` today; Linux from the same build). Details in
+[apps/desktop/README.md](apps/desktop/README.md).
+
+![Amplio desktop](docs/images/desktop-dockerfree.png)
 
 ## Dashboard
 
