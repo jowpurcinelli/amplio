@@ -183,6 +183,27 @@ export const createCohort = (s: Settings, body: { name: string; definition: Coho
   post<{ data: Cohort }>(s, "/cohorts", body).then((r) => r.data);
 export const deleteCohort = (s: Settings, id: string) => del(s, `/cohorts/${id}`);
 
+// --- feature flags ---
+export interface FlagVariant {
+  key: string;
+  weight: number;
+}
+export interface FlagRow {
+  id: string;
+  key: string;
+  description: string | null;
+  enabled: boolean;
+  rollout: number;
+  variants: FlagVariant[];
+}
+export type FlagInput = Omit<FlagRow, "id">;
+export const listFlags = (s: Settings) => get<{ data: FlagRow[] }>(s, "/flags").then((r) => r.data);
+export const createFlag = (s: Settings, body: FlagInput) =>
+  post<{ data: FlagRow }>(s, "/flags", body).then((r) => r.data);
+export const updateFlag = (s: Settings, id: string, body: FlagInput) =>
+  put<{ data: FlagRow }>(s, `/flags/${id}`, body).then((r) => r.data);
+export const deleteFlag = (s: Settings, id: string) => del(s, `/flags/${id}`);
+
 // --- dashboards ---
 export interface Dashboard {
   id: string;
