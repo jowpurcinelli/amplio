@@ -9,6 +9,8 @@ import type {
   CohortInput,
   Dashboard,
   DashboardInput,
+  Flag,
+  FlagInput,
   KeyKind,
   ResolvedKey,
   Store,
@@ -166,6 +168,49 @@ export class PgStore implements Store {
     return (r.rowCount ?? 0) > 0;
   }
 
+  async listFlags(projectId: string): Promise<Flag[]> {
+    const r = await this.pool.query(
+      `SELECT id, project_id, key, description, enabled, rollout, variants, created_at, updated_at
+       FROM flags WHERE project_id = $1 ORDER BY key`,
+      [projectId],
+    );
+    return r.rows.map(mapFlag);
+  }
+
+  async getFlag(projectId: string, key: string): Promise<Flag | null> {
+    const r = await this.pool.query(
+      `SELECT id, project_id, key, description, enabled, rollout, variants, created_at, updated_at
+       FROM flags WHERE project_id = $1 AND key = $2`,
+      [projectId, key],
+    );
+    return r.rows[0] ? mapFlag(r.rows[0]) : null;
+  }
+
+  async createFlag(projectId: string, input: FlagInput): Promise<Flag> {
+    const r = await this.pool.query(
+      `INSERT INTO flags (project_id, key, description, enabled, rollout, variants)
+       VALUES ($1, $2, $3, $4, $5, $6)
+       RETURNING id, project_id, key, description, enabled, rollout, variants, created_at, updated_at`,
+      [projectId, input.key, input.description ?? null, input.enabled, input.rollout, JSON.stringify(input.variants ?? [])],
+    );
+    return mapFlag(r.rows[0]);
+  }
+
+  async updateFlag(projectId: string, id: string, input: FlagInput): Promise<Flag | null> {
+    const r = await this.pool.query(
+      `UPDATE flags SET key = $3, description = $4, enabled = $5, rollout = $6, variants = $7, updated_at = now()
+       WHERE id = $1 AND project_id = $2
+       RETURNING id, project_id, key, description, enabled, rollout, variants, created_at, updated_at`,
+      [id, projectId, input.key, input.description ?? null, input.enabled, input.rollout, JSON.stringify(input.variants ?? [])],
+    );
+    return r.rows[0] ? mapFlag(r.rows[0]) : null;
+  }
+
+  async deleteFlag(projectId: string, id: string): Promise<boolean> {
+    const r = await this.pool.query(`DELETE FROM flags WHERE id = $1 AND project_id = $2`, [id, projectId]);
+    return (r.rowCount ?? 0) > 0;
+  }
+
   async close(): Promise<void> {
     await this.pool.end();
   }
@@ -212,5 +257,18 @@ function mapCohort(row: any): Cohort {
     name: row.name,
     definition: row.definition,
     createdAt: String(row.created_at),
+  };
+}
+function mapFlag(row: any): Flag {
+  return {
+    id: row.id,
+    projectId: row.project_id,
+    key: row.key,
+    description: row.description ?? null,
+    enabled: Boolean(row.enabled),
+    rollout: Number(row.rollout),
+    variants: typeof row.variants === "string" ? JSON.parse(row.variants) : row.variants,
+    createdAt: String(row.created_at),
+    updatedAt: String(row.updated_at),
   };
 }

@@ -8,6 +8,8 @@ import type {
   CohortInput,
   Dashboard,
   DashboardInput,
+  Flag,
+  FlagInput,
   KeyKind,
   ResolvedKey,
   Store,
@@ -67,6 +69,14 @@ export class SqliteStore implements Store {
         created_at TEXT NOT NULL DEFAULT (datetime('now'))
       );
       CREATE INDEX IF NOT EXISTS cohorts_project_idx ON cohorts(project_id);
+      CREATE TABLE IF NOT EXISTS flags (
+        id TEXT PRIMARY KEY, project_id TEXT NOT NULL, key TEXT NOT NULL, description TEXT,
+        enabled INTEGER NOT NULL DEFAULT 0, rollout INTEGER NOT NULL DEFAULT 0,
+        variants TEXT NOT NULL DEFAULT '[]',
+        created_at TEXT NOT NULL DEFAULT (datetime('now')), updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+        UNIQUE(project_id, key)
+      );
+      CREATE INDEX IF NOT EXISTS flags_project_idx ON flags(project_id);
     `);
     this.db.prepare(`INSERT OR IGNORE INTO organizations (id, name) VALUES (?, 'Demo Org')`).run(ORG_ID);
     this.db.prepare(`INSERT OR IGNORE INTO projects (id, org_id, name) VALUES (?, ?, 'dev-project')`).run(PROJECT_ID, ORG_ID);
@@ -191,6 +201,58 @@ export class SqliteStore implements Store {
     return this.db.prepare(`DELETE FROM cohorts WHERE id = ? AND project_id = ?`).run(id, projectId).changes as number > 0;
   }
 
+  async listFlags(projectId: string): Promise<Flag[]> {
+    return this.db
+      .prepare(`SELECT * FROM flags WHERE project_id = ? ORDER BY key`)
+      .all(projectId)
+      .map(mapFlag);
+  }
+
+  async getFlag(projectId: string, key: string): Promise<Flag | null> {
+    const row = this.db.prepare(`SELECT * FROM flags WHERE project_id = ? AND key = ?`).get(projectId, key);
+    return row ? mapFlag(row) : null;
+  }
+
+  async createFlag(projectId: string, input: FlagInput): Promise<Flag> {
+    const row = this.db
+      .prepare(
+        `INSERT INTO flags (id, project_id, key, description, enabled, rollout, variants)
+         VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING *`,
+      )
+      .get(
+        randomUUID(),
+        projectId,
+        input.key,
+        input.description ?? null,
+        input.enabled ? 1 : 0,
+        input.rollout,
+        JSON.stringify(input.variants ?? []),
+      );
+    return mapFlag(row);
+  }
+
+  async updateFlag(projectId: string, id: string, input: FlagInput): Promise<Flag | null> {
+    const row = this.db
+      .prepare(
+        `UPDATE flags SET key = ?, description = ?, enabled = ?, rollout = ?, variants = ?, updated_at = datetime('now')
+         WHERE id = ? AND project_id = ? RETURNING *`,
+      )
+      .get(
+        input.key,
+        input.description ?? null,
+        input.enabled ? 1 : 0,
+        input.rollout,
+        JSON.stringify(input.variants ?? []),
+        id,
+        projectId,
+      );
+    return row ? mapFlag(row) : null;
+  }
+
+  async deleteFlag(projectId: string, id: string): Promise<boolean> {
+    return this.db.prepare(`DELETE FROM flags WHERE id = ? AND project_id = ?`).run(id, projectId).changes as number > 0;
+  }
+
   async close(): Promise<void> {
     this.db.close();
   }
@@ -237,5 +299,18 @@ function mapCohort(row: any): Cohort {
     name: row.name,
     definition: JSON.parse(row.definition),
     createdAt: row.created_at,
+  };
+}
+function mapFlag(row: any): Flag {
+  return {
+    id: row.id,
+    projectId: row.project_id,
+    key: row.key,
+    description: row.description ?? null,
+    enabled: Boolean(row.enabled),
+    rollout: Number(row.rollout),
+    variants: JSON.parse(row.variants),
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
   };
 }

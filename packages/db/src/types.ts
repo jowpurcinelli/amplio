@@ -38,6 +38,31 @@ export interface Cohort {
   createdAt: string;
 }
 
+export interface FlagVariant {
+  key: string;
+  weight: number;
+}
+export interface Flag {
+  id: string;
+  projectId: string;
+  key: string;
+  description: string | null;
+  enabled: boolean;
+  /** Percent of users the flag is on for when it has no variants (0-100). */
+  rollout: number;
+  /** Weighted variants for multivariate flags; empty means a boolean flag. */
+  variants: FlagVariant[];
+  createdAt: string;
+  updatedAt: string;
+}
+export interface FlagInput {
+  key: string;
+  description?: string | null;
+  enabled: boolean;
+  rollout: number;
+  variants: FlagVariant[];
+}
+
 export interface ChartInput {
   name: string;
   kind: string;
@@ -78,6 +103,12 @@ export interface Store {
   listCohorts(projectId: string): Promise<Cohort[]>;
   createCohort(projectId: string, input: CohortInput): Promise<Cohort>;
   deleteCohort(projectId: string, id: string): Promise<boolean>;
+
+  listFlags(projectId: string): Promise<Flag[]>;
+  getFlag(projectId: string, key: string): Promise<Flag | null>;
+  createFlag(projectId: string, input: FlagInput): Promise<Flag>;
+  updateFlag(projectId: string, id: string, input: FlagInput): Promise<Flag | null>;
+  deleteFlag(projectId: string, id: string): Promise<boolean>;
 
   close(): Promise<void>;
 }

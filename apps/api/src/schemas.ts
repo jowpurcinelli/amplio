@@ -69,3 +69,14 @@ export const keyBody = z.object({
   kind: z.enum(["write", "read"]),
   label: z.string().max(200).optional(),
 });
+
+export const flagBody = z.object({
+  key: z.string().min(1).max(200).regex(/^[A-Za-z0-9_-]+$/, "letters, numbers, - and _ only"),
+  description: z.string().max(500).nullable().optional(),
+  enabled: z.boolean(),
+  rollout: z.number().int().min(0).max(100),
+  variants: z
+    .array(z.object({ key: z.string().min(1).max(100), weight: z.number().min(0) }))
+    .max(20)
+    .default([]),
+});

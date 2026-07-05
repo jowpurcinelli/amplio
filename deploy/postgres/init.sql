@@ -60,6 +60,22 @@ CREATE TABLE IF NOT EXISTS cohorts (
 );
 CREATE INDEX IF NOT EXISTS cohorts_project_idx ON cohorts(project_id);
 
+CREATE TABLE IF NOT EXISTS flags (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  project_id  UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+  key         TEXT NOT NULL,
+  description TEXT,
+  enabled     BOOLEAN NOT NULL DEFAULT false,
+  -- percent of users the flag is on for when it has no variants
+  rollout     INT NOT NULL DEFAULT 0,
+  -- weighted variants for multivariate flags; empty array = boolean flag
+  variants    JSONB NOT NULL DEFAULT '[]',
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE (project_id, key)
+);
+CREATE INDEX IF NOT EXISTS flags_project_idx ON flags(project_id);
+
 -- Local development seed: a demo org, project, and the default dev API key so
 -- the ingest quick-start works out of the box.
 INSERT INTO organizations (id, name)

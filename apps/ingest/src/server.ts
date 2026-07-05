@@ -2,7 +2,7 @@ import Fastify, { type FastifyInstance } from "fastify";
 import cors from "@fastify/cors";
 import { ingestRequest, type IngestResponse, type StoredEvent } from "@amplio/schema";
 import type { ClickHouseClient } from "@clickhouse/client";
-import type { Store } from "@amplio/db";
+import { evaluateFlag, type Store } from "@amplio/db";
 import type { Config } from "./config.js";
 import { KeyResolver } from "./auth.js";
 import { normalize } from "./normalize.js";
@@ -19,7 +19,8 @@ export interface ServerDeps {
 export function buildServer(deps: ServerDeps): FastifyInstance {
   const { cfg, clickhouse } = deps;
   const now = deps.now ?? (() => Date.now());
-  const keys = new KeyResolver(cfg, deps.store ?? null);
+  const store = deps.store ?? null;
+  const keys = new KeyResolver(cfg, store);
 
   const app = Fastify({
     logger: { level: process.env.LOG_LEVEL ?? "info" },
@@ -29,6 +30,26 @@ export function buildServer(deps: ServerDeps): FastifyInstance {
   app.register(cors, { origin: true });
 
   app.get("/health", async () => ({ status: "ok", service: "amplio-ingest" }));
+
+  // Flag evaluation for SDKs. Uses the same write key as ingestion. Given a
+  // unit (user or device id), returns each flag's resolved on/variant state.
+  app.post("/flags/evaluate", async (req, reply) => {
+    const body = req.body as { api_key?: string; user_id?: string; device_id?: string; keys?: string[] };
+    const projectId = await keys.resolve(body.api_key ?? "");
+    if (!projectId) return reply.status(401).send({ code: 401, error: "invalid api_key" });
+    const unit = body.user_id || body.device_id;
+    if (!unit) return reply.status(400).send({ code: 400, error: "user_id or device_id is required" });
+    if (!store) return reply.status(503).send({ code: 503, error: "flag store not configured" });
+
+    const all = await store.listFlags(projectId);
+    const wanted = Array.isArray(body.keys) && body.keys.length > 0 ? new Set(body.keys) : null;
+    const flags: Record<string, { on: boolean; variant: string | null }> = {};
+    for (const flag of all) {
+      if (wanted && !wanted.has(flag.key)) continue;
+      flags[flag.key] = evaluateFlag(flag, unit);
+    }
+    return reply.send({ flags });
+  });
 
   const handleIngest = async (
     body: unknown,

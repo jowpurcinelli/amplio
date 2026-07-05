@@ -4,6 +4,7 @@ import type { Store } from "./types.js";
 
 export * from "./types.js";
 export { generateKey } from "./keys.js";
+export { evaluateFlag, type FlagEvaluation } from "./flags.js";
 export { PgStore } from "./pg.js";
 export { SqliteStore } from "./sqlite.js";
 

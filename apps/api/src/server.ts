@@ -15,7 +15,7 @@ import {
 } from "@amplio/query";
 import { makeStore, type Store } from "@amplio/db";
 import type { ApiConfig } from "./config.js";
-import { funnelBody, retentionBody, segmentationBody, userBody, chartBody, dashboardBody, cohortBody, keyBody } from "./schemas.js";
+import { funnelBody, retentionBody, segmentationBody, userBody, chartBody, dashboardBody, cohortBody, keyBody, flagBody } from "./schemas.js";
 
 export interface ApiDeps {
   cfg: ApiConfig;
@@ -316,6 +316,43 @@ export function buildApi(deps: ApiDeps): FastifyInstance {
     const p = requireStore(reply);
     if (!p) return;
     const ok = await p.deleteCohort(projectId, (req.params as { id: string }).id);
+    reply.status(ok ? 200 : 404).send({ ok });
+  });
+
+  // --- feature flags (management; evaluation lives on the ingest service) ---
+  app.get("/flags", async (req, reply) => {
+    const projectId = await auth(req, reply);
+    if (!projectId) return;
+    const p = requireStore(reply);
+    if (!p) return;
+    reply.send({ data: await p.listFlags(projectId) });
+  });
+  app.post("/flags", async (req, reply) => {
+    const projectId = await auth(req, reply);
+    if (!projectId) return;
+    const p = requireStore(reply);
+    if (!p) return;
+    const parsed = flagBody.safeParse(req.body);
+    if (!parsed.success) return reply.status(400).send({ error: parsed.error.issues[0]?.message });
+    reply.send({ data: await p.createFlag(projectId, parsed.data) });
+  });
+  app.put("/flags/:id", async (req, reply) => {
+    const projectId = await auth(req, reply);
+    if (!projectId) return;
+    const p = requireStore(reply);
+    if (!p) return;
+    const parsed = flagBody.safeParse(req.body);
+    if (!parsed.success) return reply.status(400).send({ error: parsed.error.issues[0]?.message });
+    const flag = await p.updateFlag(projectId, (req.params as { id: string }).id, parsed.data);
+    if (!flag) return reply.status(404).send({ error: "not found" });
+    reply.send({ data: flag });
+  });
+  app.delete("/flags/:id", async (req, reply) => {
+    const projectId = await auth(req, reply);
+    if (!projectId) return;
+    const p = requireStore(reply);
+    if (!p) return;
+    const ok = await p.deleteFlag(projectId, (req.params as { id: string }).id);
     reply.status(ok ? 200 : 404).send({ ok });
   });
 

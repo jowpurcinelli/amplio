@@ -4,7 +4,7 @@
   "private": true,
   "description": "Amplio desktop app. Local-first product analytics you run yourself.",
   "license": "MIT",
-  "author": "jowpurcinelli",
+  "author": { "name": "jowpurcinelli", "email": "jppurcinelli@gmail.com" },
   "repository": "https://github.com/jowpurcinelli/amplio",
   "main": "src/main.js",
   "scripts": {
@@ -23,6 +23,7 @@
     "appId": "com.amplio.desktop",
     "productName": "Amplio",
     "directories": { "buildResources": "assets", "output": "release" },
+    "npmRebuild": false,
     "files": ["src/**/*", "package.json"],
     "extraResources": [{ "from": "build", "to": "build" }],
     "mac": {
