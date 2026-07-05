@@ -20,6 +20,15 @@ export interface TransportResponse {
 /** Pluggable network transport (defaults to fetch). Injected in tests. */
 export type Transport = (url: string, body: string) => Promise<TransportResponse>;
 
+/** A resolved feature flag for the current unit. */
+export interface FlagValue {
+  on: boolean;
+  variant: string | null;
+}
+
+/** Fetches evaluated flags from the ingest /flags/evaluate endpoint. */
+export type FlagsFetcher = (url: string, body: string) => Promise<Record<string, FlagValue>>;
+
 export interface AmplioConfig {
   /** Write API key for the project. */
   apiKey: string;
@@ -39,6 +48,8 @@ export interface AmplioConfig {
   storage?: KeyValueStore;
   /** Override transport (defaults to fetch). */
   transport?: Transport;
+  /** Override the flags fetcher (defaults to fetch). Injected in tests. */
+  flagsFetcher?: FlagsFetcher;
 }
 
 /** The event envelope the SDK sends, matching Amplio ingest. */

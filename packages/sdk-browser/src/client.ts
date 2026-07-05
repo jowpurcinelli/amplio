@@ -1,5 +1,7 @@
 import type {
   AmplioConfig,
+  FlagsFetcher,
+  FlagValue,
   KeyValueStore,
   Properties,
   SdkEvent,
@@ -37,6 +39,18 @@ const fetchTransport: Transport = async (url, body) => {
   return { status: res.status, ok: res.ok };
 };
 
+/** Default flags fetcher using the global fetch. */
+const fetchFlags: FlagsFetcher = async (url, body) => {
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body,
+  });
+  if (!res.ok) return {};
+  const json = (await res.json()) as { flags?: Record<string, FlagValue> };
+  return json.flags ?? {};
+};
+
 /**
  * Amplio browser client. Batches events, persists an offline queue, manages
  * device id and sessions, and retries with backoff. Wire-compatible with the
@@ -57,6 +71,8 @@ export class AmplioClient {
   private deviceId: string;
   private userId: string | null;
   private readonly platform: string;
+  private readonly flagsFetcher: FlagsFetcher;
+  private flagValues: Record<string, FlagValue> = {};
 
   constructor(private readonly config: AmplioConfig) {
     this.store = resolveStore(config.storage);
@@ -67,6 +83,7 @@ export class AmplioClient {
     this.sessionTimeoutMs = config.sessionTimeoutMs ?? DEFAULTS.sessionTimeoutMs;
     this.retryBaseMs = DEFAULTS.retryBaseMs;
     this.platform = config.platform ?? "Web";
+    this.flagsFetcher = config.flagsFetcher ?? fetchFlags;
 
     this.deviceId = this.store.get(KEY.device) ?? this.newDeviceId();
     this.userId = this.store.get(KEY.user);
@@ -135,6 +152,38 @@ export class AmplioClient {
   /** Attach user properties via an $identify event. */
   identify(userProperties: Properties): void {
     this.track("$identify", undefined, userProperties);
+  }
+
+  /**
+   * Fetch and cache feature flags evaluated for the current user/device. Call
+   * after init (and again after setUserId) so isEnabled/getVariant are ready.
+   */
+  async loadFlags(keys?: string[]): Promise<void> {
+    const body = JSON.stringify({
+      api_key: this.config.apiKey,
+      ...(this.userId ? { user_id: this.userId } : { device_id: this.deviceId }),
+      ...(keys && keys.length > 0 ? { keys } : {}),
+    });
+    try {
+      this.flagValues = await this.flagsFetcher(`${this.serverUrl}/flags/evaluate`, body);
+    } catch {
+      // keep the last known values on a transient failure
+    }
+  }
+
+  /** Whether a flag is on for the current unit (from the last loadFlags). */
+  isEnabled(key: string): boolean {
+    return this.flagValues[key]?.on ?? false;
+  }
+
+  /** The assigned variant of a flag, or null. */
+  getVariant(key: string): string | null {
+    return this.flagValues[key]?.variant ?? null;
+  }
+
+  /** All cached flag values. */
+  getFlags(): Record<string, FlagValue> {
+    return { ...this.flagValues };
   }
 
   /** Send all queued events. Safe to call repeatedly; it self-serializes. */

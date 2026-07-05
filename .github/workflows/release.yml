@@ -10,12 +10,12 @@ permissions:
   contents: write
 
 jobs:
+  # Linux installers build on CI. macOS dmgs are built locally and attached to
+  # the release, because electron-builder trips over pnpm's symlinked
+  # node_modules on the macOS runner (works fine locally). Re-enabling macOS on
+  # CI likely just needs node-linker=hoisted; tracked separately.
   build:
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [macos-latest, ubuntu-latest]
-    runs-on: ${{ matrix.os }}
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4

@@ -10,6 +10,8 @@ export type {
   KeyValueStore,
   Transport,
   TransportResponse,
+  FlagValue,
+  FlagsFetcher,
 } from "./types.js";
 
 /**
@@ -41,5 +43,8 @@ export const identify = (up: Properties): void => required().identify(up);
 export const setUserId = (id: string | null): void => required().setUserId(id);
 export const flush = (): Promise<void> => required().flush();
 export const reset = (): void => required().reset();
+export const loadFlags = (keys?: string[]): Promise<void> => required().loadFlags(keys);
+export const isEnabled = (key: string): boolean => required().isEnabled(key);
+export const getVariant = (key: string): string | null => required().getVariant(key);
 
-export default { init, track, identify, setUserId, flush, reset };
+export default { init, track, identify, setUserId, flush, reset, loadFlags, isEnabled, getVariant };

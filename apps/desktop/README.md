@@ -15,9 +15,31 @@ Everything runs on your machine. No Docker. Your events never leave it.
 
 ## Download
 
-Prebuilt installers are attached to the GitHub releases (macOS `.dmg` today;
-Linux `AppImage`/`.deb` from the same build config). Download, open, and run.
-First launch downloads ClickHouse (~160MB); after that it is offline and fast.
+Prebuilt installers are attached to the [GitHub releases](https://github.com/jowpurcinelli/amplio/releases):
+macOS `.dmg` (Apple Silicon and Intel) and Linux `.AppImage` / `.deb`. Download,
+open, and run. First launch downloads ClickHouse (~160MB); after that it is
+offline and fast.
+
+The builds are **unsigned**, so on first open macOS Gatekeeper warns: right-click
+the app and choose Open, or allow it under System Settings > Privacy & Security.
+
+### Code signing and notarization (optional)
+
+To ship signed, notarized macOS builds, provide these repository secrets and set
+the repo variable `AMPLIO_MAC_SIGN=true`:
+
+- `CSC_LINK` (base64 of your Developer ID Application `.p12`) and
+  `CSC_KEY_PASSWORD`
+- `APPLE_ID`, `APPLE_APP_SPECIFIC_PASSWORD`, `APPLE_TEAM_ID` (for notarization)
+
+These require an Apple Developer account. Without them the build is unsigned.
+
+### How builds are produced
+
+Linux installers build on GitHub Actions (`.github/workflows/release.yml`) when
+a `desktop-v*` tag is pushed. The macOS dmgs are built locally with the command
+below and attached to the release, because electron-builder trips over pnpm's
+symlinked `node_modules` on the macOS runner.
 
 ## Build an installer yourself
 

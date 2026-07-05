@@ -118,6 +118,29 @@ describe("AmplioClient", () => {
     expect(total).toBe(2);
   });
 
+  it("loads flags and exposes isEnabled/getVariant", async () => {
+    let requestedBody = "";
+    const c = new AmplioClient({
+      apiKey: "k",
+      serverUrl: "http://localhost:8787",
+      flushIntervalMs: 0,
+      storage: store,
+      transport: mockTransport(ok).transport,
+      flagsFetcher: async (_url, body) => {
+        requestedBody = body;
+        return { "new-checkout": { on: true, variant: "treatment" }, "old-feature": { on: false, variant: null } };
+      },
+    });
+    c.setUserId("u_42");
+    await c.loadFlags();
+    expect(JSON.parse(requestedBody).user_id).toBe("u_42");
+    expect(c.isEnabled("new-checkout")).toBe(true);
+    expect(c.getVariant("new-checkout")).toBe("treatment");
+    expect(c.isEnabled("old-feature")).toBe(false);
+    expect(c.isEnabled("unknown")).toBe(false);
+    expect(c.getVariant("unknown")).toBeNull();
+  });
+
   it("identify sends a $identify event with user_properties", async () => {
     const mt = mockTransport(ok);
     const c = makeClient(store, mt);
