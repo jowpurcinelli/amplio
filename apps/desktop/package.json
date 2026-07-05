@@ -25,14 +25,12 @@
     "files": ["src/**/*", "package.json"],
     "extraResources": [{ "from": "build", "to": "build" }],
     "mac": {
-      "target": ["dmg"],
-      "identity": null,
+      "target": [{ "target": "dmg", "arch": ["arm64", "x64"] }],
       "category": "public.app-category.developer-tools"
     },
     "linux": {
       "target": ["AppImage", "deb"],
       "category": "Development"
-    },
-    "win": { "target": ["nsis"] }
+    }
   }
 }

@@ -1,0 +1,56 @@
+name: Release desktop
+
+# Push a tag like desktop-v0.1.1 to build installers on macOS and Linux
+# runners and attach them to the GitHub release for that tag.
+on:
+  push:
+    tags: ["desktop-v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      # Build the pieces the desktop app bundles.
+      - run: pnpm --filter @amplio/schema build
+      - run: pnpm --filter @amplio/query build
+      - run: pnpm --filter @amplio/db build
+      - run: pnpm --filter @amplio/sdk-browser build
+      - run: pnpm --filter @amplio/ingest build
+      - run: pnpm --filter @amplio/api build
+      - run: pnpm --filter @amplio/web build
+
+      # Bundle the services and package the app for this runner's OS.
+      # macOS signing + notarization happen only if the Apple secrets are set;
+      # otherwise the build is unsigned.
+      - run: pnpm --filter @amplio/desktop dist
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CSC_LINK: ${{ secrets.CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+
+      - name: Attach installers to the release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            apps/desktop/release/*.dmg
+            apps/desktop/release/*.AppImage
+            apps/desktop/release/*.deb
