@@ -131,9 +131,16 @@ export function buildApi(deps: ApiDeps): FastifyInstance {
     if (!s) return;
     const parsed = signupBody.safeParse(req.body);
     if (!parsed.success) return reply.status(400).send({ error: parsed.error.issues[0]?.message });
+    // Provision a full workspace so a fresh signup lands on a working project:
+    // an org, a default project, and read + write keys, all linked to the user.
+    let org: { id: string } | null = null;
     try {
+      org = await s.createOrg(`${parsed.data.email}'s workspace`);
+      const project = await s.createProject(org.id, "Default project");
+      await s.createApiKey(project.id, "write", "Default write key");
+      await s.createApiKey(project.id, "read", "Default read key");
       const user = await s.createUser({
-        orgId: null,
+        orgId: org.id,
         email: parsed.data.email,
         name: parsed.data.name ?? null,
         passwordHash: hashPassword(parsed.data.password),
@@ -141,6 +148,10 @@ export function buildApi(deps: ApiDeps): FastifyInstance {
       const token = signToken({ sub: user.id, email: user.email }, cfg.authSecret);
       reply.send({ token, user });
     } catch {
+      // The email is the only uniquely-constrained field, so a failure here is a
+      // duplicate account. Roll the just-created org back so we do not leak an
+      // orphaned org/project/keys on the retry.
+      if (org) await s.deleteOrg(org.id).catch(() => {});
       reply.status(409).send({ error: "an account with that email already exists" });
     }
   });
@@ -166,6 +177,17 @@ export function buildApi(deps: ApiDeps): FastifyInstance {
     const user = await s.getUser(payload.sub);
     if (!user) return reply.status(401).send({ error: "not authenticated" });
     reply.send({ user });
+  });
+
+  // Projects the authed user can drive from the dashboard, each with its keys,
+  // so the UI can pick a read key automatically instead of manual entry.
+  app.get("/me/projects", async (req, reply) => {
+    const s = requireStore(reply);
+    if (!s) return;
+    const payload = verifyToken(extractKey(req), cfg.authSecret);
+    if (!payload) return reply.status(401).send({ error: "not authenticated" });
+    const projects = await s.getUserProjects(payload.sub);
+    reply.send({ projects });
   });
 
   // --- metadata pickers ---

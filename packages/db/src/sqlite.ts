@@ -15,6 +15,7 @@ import type {
   ResolvedKey,
   Store,
   User,
+  UserProject,
 } from "./types.js";
 
 const ORG_ID = "00000000-0000-0000-0000-000000000001";
@@ -226,6 +227,50 @@ export class SqliteStore implements Store {
       | { password_hash: string }
       | undefined;
     return row ? { user: mapUser(row), passwordHash: row.password_hash } : null;
+  }
+
+  async createOrg(name: string): Promise<{ id: string }> {
+    const id = randomUUID();
+    this.db.prepare(`INSERT INTO organizations (id, name) VALUES (?, ?)`).run(id, name);
+    return { id };
+  }
+
+  async deleteOrg(id: string): Promise<void> {
+    // SQLite has FKs off, so remove children explicitly (keys -> projects -> users -> org).
+    this.db
+      .prepare(`DELETE FROM api_keys WHERE project_id IN (SELECT id FROM projects WHERE org_id = ?)`)
+      .run(id);
+    this.db.prepare(`DELETE FROM projects WHERE org_id = ?`).run(id);
+    this.db.prepare(`DELETE FROM users WHERE org_id = ?`).run(id);
+    this.db.prepare(`DELETE FROM organizations WHERE id = ?`).run(id);
+  }
+
+  async createProject(orgId: string, name: string): Promise<{ id: string }> {
+    const id = randomUUID();
+    this.db.prepare(`INSERT INTO projects (id, org_id, name) VALUES (?, ?, ?)`).run(id, orgId, name);
+    return { id };
+  }
+
+  async getUserProjects(userId: string): Promise<UserProject[]> {
+    const rows = this.db
+      .prepare(
+        `SELECT p.id, p.name,
+           (SELECT key FROM api_keys k WHERE k.project_id = p.id AND k.kind = 'read'
+              AND k.revoked_at IS NULL ORDER BY created_at LIMIT 1) AS read_key,
+           (SELECT key FROM api_keys k WHERE k.project_id = p.id AND k.kind = 'write'
+              AND k.revoked_at IS NULL ORDER BY created_at LIMIT 1) AS write_key
+         FROM projects p
+         JOIN users u ON u.org_id = p.org_id
+         WHERE u.id = ?
+         ORDER BY p.created_at`,
+      )
+      .all(userId) as Array<{ id: string; name: string; read_key: string | null; write_key: string | null }>;
+    return rows.map((row) => ({
+      id: row.id,
+      name: row.name,
+      readKey: row.read_key ?? null,
+      writeKey: row.write_key ?? null,
+    }));
   }
 
   async listFlags(projectId: string): Promise<Flag[]> {

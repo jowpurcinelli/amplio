@@ -51,6 +51,12 @@ export interface NewUser {
   name: string | null;
   passwordHash: string;
 }
+export interface UserProject {
+  id: string;
+  name: string;
+  readKey: string | null;
+  writeKey: string | null;
+}
 
 export interface FlagVariant {
   key: string;
@@ -121,6 +127,12 @@ export interface Store {
   createUser(input: NewUser): Promise<User>;
   getUser(id: string): Promise<User | null>;
   getCredentials(email: string): Promise<{ user: User; passwordHash: string } | null>;
+  createOrg(name: string): Promise<{ id: string }>;
+  /** Delete an org and everything under it (projects, keys, users). Used to roll back a failed signup. */
+  deleteOrg(id: string): Promise<void>;
+  createProject(orgId: string, name: string): Promise<{ id: string }>;
+  /** Projects the user can access (via their org) with each project's keys. */
+  getUserProjects(userId: string): Promise<UserProject[]>;
 
   listFlags(projectId: string): Promise<Flag[]>;
   getFlag(projectId: string, key: string): Promise<Flag | null>;

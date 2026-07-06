@@ -59,3 +59,52 @@ describe("SqliteStore users", () => {
     await s.close();
   });
 });
+
+describe("SqliteStore workspace provisioning", () => {
+  it("lists a user's projects with their read/write keys via the org", async () => {
+    const s = new SqliteStore(":memory:");
+    const org = await s.createOrg("Acme");
+    const project = await s.createProject(org.id, "Default project");
+    const write = await s.createApiKey(project.id, "write", null);
+    const read = await s.createApiKey(project.id, "read", null);
+    const user = await s.createUser({
+      orgId: org.id,
+      email: "owner@acme.com",
+      name: null,
+      passwordHash: hashPassword("pw"),
+    });
+
+    const projects = await s.getUserProjects(user.id);
+    expect(projects).toHaveLength(1);
+    expect(projects[0]).toMatchObject({
+      id: project.id,
+      name: "Default project",
+      readKey: read.key,
+      writeKey: write.key,
+    });
+    await s.close();
+  });
+
+  it("returns no projects for a user with no org", async () => {
+    const s = new SqliteStore(":memory:");
+    const user = await s.createUser({ orgId: null, email: "solo@x.com", name: null, passwordHash: hashPassword("pw") });
+    expect(await s.getUserProjects(user.id)).toEqual([]);
+    await s.close();
+  });
+
+  it("deleteOrg removes the org, its projects, keys, and users (signup rollback)", async () => {
+    const s = new SqliteStore(":memory:");
+    const org = await s.createOrg("Doomed");
+    const project = await s.createProject(org.id, "P");
+    const key = await s.createApiKey(project.id, "read", null);
+    const user = await s.createUser({ orgId: org.id, email: "gone@x.com", name: null, passwordHash: hashPassword("pw") });
+
+    await s.deleteOrg(org.id);
+
+    expect(await s.getUser(user.id)).toBeNull();
+    expect(await s.getCredentials("gone@x.com")).toBeNull();
+    expect(await s.resolveKey(key.key)).toBeNull();
+    expect(await s.listApiKeys(project.id)).toEqual([]);
+    await s.close();
+  });
+});

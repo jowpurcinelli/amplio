@@ -16,6 +16,7 @@ import type {
   ResolvedKey,
   Store,
   User,
+  UserProject,
 } from "./types.js";
 
 const { Pool } = pg;
@@ -194,6 +195,48 @@ export class PgStore implements Store {
     );
     const row = r.rows[0];
     return row ? { user: mapUser(row), passwordHash: row.password_hash } : null;
+  }
+
+  async createOrg(name: string): Promise<{ id: string }> {
+    const r = await this.pool.query(
+      `INSERT INTO organizations (name) VALUES ($1) RETURNING id`,
+      [name],
+    );
+    return { id: r.rows[0].id };
+  }
+
+  async deleteOrg(id: string): Promise<void> {
+    // FKs cascade in Postgres, so deleting the org removes its projects/keys/users.
+    await this.pool.query(`DELETE FROM organizations WHERE id = $1`, [id]);
+  }
+
+  async createProject(orgId: string, name: string): Promise<{ id: string }> {
+    const r = await this.pool.query(
+      `INSERT INTO projects (org_id, name) VALUES ($1, $2) RETURNING id`,
+      [orgId, name],
+    );
+    return { id: r.rows[0].id };
+  }
+
+  async getUserProjects(userId: string): Promise<UserProject[]> {
+    const r = await this.pool.query(
+      `SELECT p.id, p.name,
+         (SELECT key FROM api_keys k WHERE k.project_id = p.id AND k.kind = 'read'
+            AND k.revoked_at IS NULL ORDER BY created_at LIMIT 1) AS read_key,
+         (SELECT key FROM api_keys k WHERE k.project_id = p.id AND k.kind = 'write'
+            AND k.revoked_at IS NULL ORDER BY created_at LIMIT 1) AS write_key
+       FROM projects p
+       JOIN users u ON u.org_id = p.org_id
+       WHERE u.id = $1
+       ORDER BY p.created_at`,
+      [userId],
+    );
+    return r.rows.map((row: any) => ({
+      id: row.id,
+      name: row.name,
+      readKey: row.read_key ?? null,
+      writeKey: row.write_key ?? null,
+    }));
   }
 
   async listFlags(projectId: string): Promise<Flag[]> {
