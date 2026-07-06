@@ -1,5 +1,16 @@
 import { useEffect, useState } from "react";
 import { loadSettings, saveSettings, type Settings as SettingsT } from "./config.js";
+import {
+  authSkipped,
+  clearToken,
+  getToken,
+  me as fetchMe,
+  myProjects,
+  unskipAuth,
+  type AuthUser,
+  type UserProject,
+} from "./auth.js";
+import { Login } from "./views/Login.js";
 import { Segmentation } from "./views/Segmentation.js";
 import { Funnel } from "./views/Funnel.js";
 import { Retention } from "./views/Retention.js";
@@ -78,15 +89,94 @@ function useTheme(): [string, () => void] {
   return [theme, cycle];
 }
 
+const ACTIVE_PROJECT_KEY = "amplio_active_project";
+
 export default function App() {
   const [view, setView] = useState<View>("events");
   const [settings, setSettings] = useState<SettingsT>(loadSettings);
   const [loaded, setLoaded] = useState<{ kind: ChartKind; definition: Record<string, unknown> } | null>(null);
   const [theme, cycleTheme] = useTheme();
 
+  // Auth state. `authReady` gates the first paint until we know whether a stored
+  // token is still valid, so the app never flashes the dashboard before the gate.
+  const [authReady, setAuthReady] = useState(false);
+  const [skipped, setSkipped] = useState<boolean>(authSkipped);
+  const [user, setUser] = useState<AuthUser | null>(null);
+  const [projects, setProjects] = useState<UserProject[]>([]);
+  const [activeProjectId, setActiveProjectId] = useState<string | null>(
+    () => localStorage.getItem(ACTIVE_PROJECT_KEY),
+  );
+
   const save = (s: SettingsT) => {
     saveSettings(s);
     setSettings(s);
+  };
+
+  // Point analytics at a project's read key automatically, keeping the API URL.
+  // Persist it so the choice survives a reload even if /me/projects is slow.
+  const selectProject = (p: UserProject) => {
+    setActiveProjectId(p.id);
+    localStorage.setItem(ACTIVE_PROJECT_KEY, p.id);
+    if (p.readKey) {
+      setSettings((s) => {
+        const next = { ...s, readKey: p.readKey! };
+        saveSettings(next);
+        return next;
+      });
+    }
+  };
+
+  const loadProjects = async (token: string) => {
+    const { projects: list } = await myProjects(settings.apiUrl, token);
+    setProjects(list);
+    const stored = localStorage.getItem(ACTIVE_PROJECT_KEY);
+    const active = list.find((p) => p.id === stored) ?? list[0];
+    if (active) selectProject(active);
+    return list;
+  };
+
+  // On load, revalidate a stored session token. On any failure we fall back to
+  // the gate (or the API-key path if the user previously chose it).
+  useEffect(() => {
+    const token = getToken();
+    if (!token) {
+      setAuthReady(true);
+      return;
+    }
+    (async () => {
+      try {
+        const { user: u } = await fetchMe(settings.apiUrl, token);
+        setUser(u);
+        await loadProjects(token);
+      } catch {
+        clearToken();
+      } finally {
+        setAuthReady(true);
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const onAuthed = async (u: AuthUser) => {
+    setUser(u);
+    const token = getToken();
+    if (token) {
+      try {
+        await loadProjects(token);
+      } catch {
+        /* projects load is best-effort; Settings still works as a fallback */
+      }
+    }
+  };
+
+  const logout = () => {
+    clearToken();
+    unskipAuth();
+    localStorage.removeItem(ACTIVE_PROJECT_KEY);
+    setUser(null);
+    setProjects([]);
+    setActiveProjectId(null);
+    setSkipped(false);
   };
 
   const navigate = (key: View) => {
@@ -110,6 +200,14 @@ export default function App() {
   const initialFor = (kind: ChartKind) =>
     loaded && loaded.kind === kind ? loaded.definition : undefined;
 
+  // Hold the first paint until the stored token has been checked.
+  if (!authReady) return <div className="auth-screen" />;
+
+  // Gate: no session and the API-key path was not chosen -> show login.
+  if (!user && !skipped) {
+    return <Login apiUrl={settings.apiUrl} onAuthed={onAuthed} onSkip={() => setSkipped(true)} />;
+  }
+
   return (
     <div className="app">
       <aside className="sidebar">
@@ -117,6 +215,24 @@ export default function App() {
           <span className="brand-dot" />
           Amplio
         </div>
+        {user && projects.length > 0 && (
+          <div className="proj-switch">
+            <label>Project</label>
+            <select
+              value={activeProjectId ?? ""}
+              onChange={(e) => {
+                const p = projects.find((x) => x.id === e.target.value);
+                if (p) selectProject(p);
+              }}
+            >
+              {projects.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
         {NAV.map((n) => (
           <button
             key={n.key}
@@ -132,6 +248,17 @@ export default function App() {
           <span aria-hidden>🎨</span>
           Theme: {theme}
         </button>
+        {user ? (
+          <button className="nav-item" onClick={logout} title={user.email}>
+            <span aria-hidden>🚪</span>
+            Log out
+          </button>
+        ) : (
+          <button className="nav-item" onClick={logout}>
+            <span aria-hidden>🔐</span>
+            Sign in
+          </button>
+        )}
       </aside>
 
       <main className="main">
