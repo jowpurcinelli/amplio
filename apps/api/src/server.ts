@@ -12,6 +12,8 @@ import {
   buildLiveEvents,
   buildStats,
   buildExperiment,
+  buildReplayList,
+  buildReplayEvents,
   type CompiledQuery,
 } from "@amplio/query";
 import { makeStore, type Store } from "@amplio/db";
@@ -181,6 +183,22 @@ export function buildApi(deps: ApiDeps): FastifyInstance {
     const rows = (await rs.json()) as Array<{ total: string; last_hour: string }>;
     const row = rows[0] ?? { total: "0", last_hour: "0" };
     reply.send({ total: Number(row.total), lastHour: Number(row.last_hour) });
+  });
+
+  // --- session replay ---
+  app.get("/replays", async (req, reply) => {
+    const projectId = await auth(req, reply);
+    if (!projectId) return;
+    const q = req.query as { from?: string; to?: string };
+    const to = Number(q.to) || Date.now();
+    const from = Number(q.from) || to - 30 * 86_400_000;
+    await run(reply, buildReplayList(projectId, { from, to }));
+  });
+
+  app.get("/replays/:id", async (req, reply) => {
+    const projectId = await auth(req, reply);
+    if (!projectId) return;
+    await run(reply, buildReplayEvents(projectId, (req.params as { id: string }).id));
   });
 
   // --- experiment readout ---

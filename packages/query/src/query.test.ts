@@ -6,6 +6,7 @@ import { buildEventNames, buildPropertyKeys } from "./meta.js";
 import { buildUserActivity, buildUserSummary } from "./user.js";
 import { buildLiveEvents, buildStats } from "./live.js";
 import { buildExperiment } from "./experiment.js";
+import { buildReplayList, buildReplayEvents } from "./replay.js";
 
 const range = { from: 1_700_000_000_000, to: 1_700_600_000_000 };
 
@@ -204,6 +205,26 @@ describe("live builders", () => {
     expect(q.sql).toContain("count() AS total");
     expect(q.sql).toContain("countIf(server_received_time_ms >");
     expect(Object.values(q.params)).toContain(now - 3_600_000);
+  });
+});
+
+describe("replay builders", () => {
+  it("buildReplayList groups sessions and orders newest first", () => {
+    const q = buildReplayList("proj_xyz", range);
+    expect(q.sql).toContain("FROM replay_events");
+    expect(q.sql).toContain("GROUP BY replay_id");
+    expect(q.sql).toContain("dateDiff('second', min(ts), max(ts))");
+    expect(q.sql).toContain("ORDER BY min(ts) DESC");
+    expect(Object.values(q.params)).toContain("proj_xyz");
+    expect(q.sql).not.toContain("proj_xyz");
+  });
+
+  it("buildReplayEvents returns ordered events for a replay, params bound", () => {
+    const q = buildReplayEvents("p", "rep_1");
+    expect(q.sql).toContain("SELECT seq, ts_ms, data");
+    expect(q.sql).toContain("ORDER BY seq");
+    expect(Object.values(q.params)).toContain("rep_1");
+    expect(q.sql).not.toContain("rep_1");
   });
 });
 

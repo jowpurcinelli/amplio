@@ -6,6 +6,7 @@ import { Retention } from "./views/Retention.js";
 import { Users } from "./views/Users.js";
 import { Events } from "./views/Events.js";
 import { Live } from "./views/Live.js";
+import { Replays } from "./views/Replays.js";
 import { Dashboards } from "./views/Dashboards.js";
 import { Cohorts } from "./views/Cohorts.js";
 import { Flags } from "./views/Flags.js";
@@ -22,6 +23,7 @@ type View =
   | "funnel"
   | "retention"
   | "users"
+  | "replays"
   | "cohorts"
   | "flags"
   | "experiments"
@@ -38,6 +40,7 @@ const NAV: { key: View; label: string; glyph: string }[] = [
   { key: "funnel", label: "Funnels", glyph: "🔻" },
   { key: "retention", label: "Retention", glyph: "🔁" },
   { key: "users", label: "Users", glyph: "👤" },
+  { key: "replays", label: "Replays", glyph: "🎬" },
   { key: "cohorts", label: "Cohorts", glyph: "🎯" },
   { key: "flags", label: "Flags", glyph: "🚩" },
   { key: "experiments", label: "Experiments", glyph: "🧪" },
@@ -53,6 +56,7 @@ const TITLES: Record<View, { title: string; sub: string }> = {
   funnel: { title: "Funnels", sub: "Ordered-step conversion within a window." },
   retention: { title: "Retention", sub: "How many users come back, by day offset from their first event." },
   users: { title: "Users", sub: "Look up a single user or device and see their full event stream." },
+  replays: { title: "Replays", sub: "Watch recorded sessions. Every replay stays on your own infrastructure." },
   cohorts: { title: "Cohorts", sub: "Define a group of users by an action, then apply it as a filter in Segmentation." },
   flags: { title: "Flags", sub: "Feature flags and A/B tests. Roll out gradually and evaluate from any SDK." },
   experiments: { title: "Experiments", sub: "Conversion by variant. Compare how each variant of a flag performs on a goal." },
@@ -142,6 +146,7 @@ export default function App() {
         {view === "funnel" && <Funnel settings={settings} initial={initialFor("funnel")} />}
         {view === "retention" && <Retention settings={settings} initial={initialFor("retention")} />}
         {view === "users" && <Users settings={settings} />}
+        {view === "replays" && <Replays settings={settings} />}
         {view === "cohorts" && <Cohorts settings={settings} />}
         {view === "flags" && <Flags settings={settings} />}
         {view === "experiments" && <Experiments settings={settings} />}

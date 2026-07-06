@@ -6,4 +6,5 @@ export { buildEventNames, buildPropertyKeys } from "./meta.js";
 export { buildUserActivity, buildUserSummary } from "./user.js";
 export { buildLiveEvents, buildStats } from "./live.js";
 export { buildExperiment } from "./experiment.js";
+export { buildReplayList, buildReplayEvents } from "./replay.js";
 export { Params, ACTOR } from "./sql.js";

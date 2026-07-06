@@ -183,6 +183,24 @@ export const createCohort = (s: Settings, body: { name: string; definition: Coho
   post<{ data: Cohort }>(s, "/cohorts", body).then((r) => r.data);
 export const deleteCohort = (s: Settings, id: string) => del(s, `/cohorts/${id}`);
 
+// --- session replay ---
+export interface ReplaySummary {
+  replay_id: string;
+  user_id: string;
+  device_id: string;
+  started: string;
+  events: string;
+  duration_s: string;
+}
+export const listReplays = (s: Settings) => get<{ data: ReplaySummary[] }>(s, "/replays").then((r) => r.data);
+export interface ReplayEventRow {
+  seq: string;
+  ts_ms: string;
+  data: string;
+}
+export const getReplayEvents = (s: Settings, id: string) =>
+  get<{ data: ReplayEventRow[] }>(s, `/replays/${encodeURIComponent(id)}`).then((r) => r.data);
+
 // --- experiments ---
 export interface ExperimentRow {
   variant: string;

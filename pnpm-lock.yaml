@@ -109,6 +109,9 @@ importers:
       react-dom:
         specifier: ^18.3.1
         version: 18.3.1(react@18.3.1)
+      rrweb-player:
+        specifier: ^2.0.0-alpha.18
+        version: 2.1.0
     devDependencies:
       '@types/react':
         specifier: ^18.3.12
@@ -1144,6 +1147,12 @@ packages:
     cpu: [x64]
     os: [win32]
 
+  '@rrweb/packer@2.1.0':
+    resolution: {integrity: sha512-M3Di2TuUN2xqgwK6OiLgikB0ebU1Wxx6iXMoSiDVhDZRgyc6euL5JQs3GclJOuYstDx+8jjbZ12hTcQe+Ai8WQ==}
+
+  '@rrweb/replay@2.1.0':
+    resolution: {integrity: sha512-a6s3Lzf4iIEL22o6+DHZrbjH/q6OIM9CFh/KzU6pDZ2mOYFP3u3Yd3IL57Oc9usnqFt/kNCvOjUf5JbBrQ9o7A==}
+
   '@rrweb/types@2.1.0':
     resolution: {integrity: sha512-svOHkcuukP6rIjz2umwVsS7uYct+2h0N97+bg+8IJYKIUj5+YjwIvqx5y9NILFKPIu3yk+Mb+KDFfJ8RV+4JlA==}
 
@@ -1161,6 +1170,9 @@ packages:
   '@tootallnate/once@2.0.1':
     resolution: {integrity: sha512-HqmEUIGRJ5fSXchkVgR5F7qn48bDBzv0kWj/Kfu5e6uci4UlEeng4331LnBkWffb++Ei3FOVLxo8JJWMFBDMeQ==}
     engines: {node: '>= 10'}
+
+  '@tsconfig/svelte@1.0.13':
+    resolution: {integrity: sha512-5lYJP45Xllo4yE/RUBccBT32eBlRDbqN8r1/MIvQbKxW3aFqaYPCNgm8D5V20X4ShHcwvYWNlKg3liDh1MlBoA==}
 
   '@types/babel__core@7.20.5':
     resolution: {integrity: sha512-qoQprZvz5wQFJwMDqeseRXWv3rqMvhgpbXFfVyWhbx9X47POIA6i/+dXefEmZKoAgOaTdaIgNSMqMIU61yRyzA==}
@@ -1803,6 +1815,9 @@ packages:
     peerDependenciesMeta:
       picomatch:
         optional: true
+
+  fflate@0.4.8:
+    resolution: {integrity: sha512-FJqqoDBR00Mdj9ppamLa/Y7vxm+PRmNWA67N846RvsoYVMKB4q3y/de5PA7gUmRMYK/8CMz2GDZQmCRN1wBcWA==}
 
   filelist@1.0.6:
     resolution: {integrity: sha512-5giy2PkLYY1cP39p17Ech+2xlpTRL9HLspOfEgm0L6CwBXBTgsK5ou0JtzYuepxkaQ/tvhCFIJ5uXo0OrM2DxA==}
@@ -2522,6 +2537,9 @@ packages:
 
   rrdom@2.1.0:
     resolution: {integrity: sha512-d7oaIHzwffxI74UJMZDGq/f97/Yfm3QX4CcTIlQelt2HsLavItLjp8x8nQ0g9Pet5+5wG1RGr9yvsxb1gJlo8A==}
+
+  rrweb-player@2.1.0:
+    resolution: {integrity: sha512-EU0dCgrN66o2E8GAT67wDBRMgcJ1QJuu2lGa8PKO3xSosSS2eCaHlJWmX9fFCMvKkLsahWe15GnuqUjprCGMoA==}
 
   rrweb-snapshot@2.1.0:
     resolution: {integrity: sha512-CFjUKWlO+Dl72gk8qwcDcNE/Pj9yr6IvGRAiRAx12pmJaSWaOKFoFgpQQ1j/mW0WKwEZXbHnMJL8M92gIsdwUQ==}
@@ -3605,6 +3623,16 @@ snapshots:
   '@rollup/rollup-win32-x64-msvc@4.62.2':
     optional: true
 
+  '@rrweb/packer@2.1.0':
+    dependencies:
+      '@rrweb/types': 2.1.0
+      fflate: 0.4.8
+
+  '@rrweb/replay@2.1.0':
+    dependencies:
+      '@rrweb/types': 2.1.0
+      rrweb: 2.1.0
+
   '@rrweb/types@2.1.0': {}
 
   '@rrweb/utils@2.1.0': {}
@@ -3616,6 +3644,8 @@ snapshots:
       defer-to-connect: 2.0.1
 
   '@tootallnate/once@2.0.1': {}
+
+  '@tsconfig/svelte@1.0.13': {}
 
   '@types/babel__core@7.20.5':
     dependencies:
@@ -4497,6 +4527,8 @@ snapshots:
     optionalDependencies:
       picomatch: 4.0.5
 
+  fflate@0.4.8: {}
+
   filelist@1.0.6:
     dependencies:
       minimatch: 5.1.9
@@ -5252,6 +5284,12 @@ snapshots:
   rrdom@2.1.0:
     dependencies:
       rrweb-snapshot: 2.1.0
+
+  rrweb-player@2.1.0:
+    dependencies:
+      '@rrweb/packer': 2.1.0
+      '@rrweb/replay': 2.1.0
+      '@tsconfig/svelte': 1.0.13
 
   rrweb-snapshot@2.1.0:
     dependencies:
