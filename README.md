@@ -33,10 +33,11 @@ Early and moving fast. See the [roadmap](docs/ROADMAP.md) for what is live and w
 | Query engine (funnels/retention/segmentation) | 🟢 done |
 | Query API | 🟢 done |
 | Browser SDK + Node SDK | 🟢 done |
-| Dashboard (segmentation, funnels, retention, user lookup) | 🟢 done |
-| Saved charts, cohorts, API-key management (Postgres) | 🟢 done |
+| Dashboard (segmentation, funnels, retention, user lookup, live feed) | 🟢 done |
+| Saved charts, cohorts, API-key management (Postgres or SQLite) | 🟢 done |
+| Feature flags & experiments (rollouts, A/B, variant analysis) | 🟢 done |
+| Desktop app (Docker-free, macOS + Linux installers) | 🟢 done |
 | Self-host deploy (Docker + Caddy) | 🟢 done |
-| Public demo instance | ⚪ needs a server |
 
 ## Desktop app
 
