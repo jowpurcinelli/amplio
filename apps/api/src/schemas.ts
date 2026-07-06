@@ -49,6 +49,13 @@ export const userBody = z.object({
   limit: z.number().int().positive().max(1000).optional(),
 });
 
+export const experimentBody = z.object({
+  flagKey: z.string().min(1).max(200),
+  exposureEvent: z.string().min(1),
+  goalEvent: z.string().min(1),
+  range: timeRange,
+});
+
 export const chartBody = z.object({
   name: z.string().min(1).max(200),
   kind: z.enum(["segmentation", "funnel", "retention"]),

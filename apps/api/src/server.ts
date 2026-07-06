@@ -11,11 +11,12 @@ import {
   buildUserSummary,
   buildLiveEvents,
   buildStats,
+  buildExperiment,
   type CompiledQuery,
 } from "@amplio/query";
 import { makeStore, type Store } from "@amplio/db";
 import type { ApiConfig } from "./config.js";
-import { funnelBody, retentionBody, segmentationBody, userBody, chartBody, dashboardBody, cohortBody, keyBody, flagBody } from "./schemas.js";
+import { funnelBody, retentionBody, segmentationBody, userBody, experimentBody, chartBody, dashboardBody, cohortBody, keyBody, flagBody } from "./schemas.js";
 
 export interface ApiDeps {
   cfg: ApiConfig;
@@ -180,6 +181,15 @@ export function buildApi(deps: ApiDeps): FastifyInstance {
     const rows = (await rs.json()) as Array<{ total: string; last_hour: string }>;
     const row = rows[0] ?? { total: "0", last_hour: "0" };
     reply.send({ total: Number(row.total), lastHour: Number(row.last_hour) });
+  });
+
+  // --- experiment readout ---
+  app.post("/query/experiment", async (req, reply) => {
+    const projectId = await auth(req, reply);
+    if (!projectId) return;
+    const parsed = experimentBody.safeParse(req.body);
+    if (!parsed.success) return reply.status(400).send({ error: parsed.error.issues[0]?.message });
+    await run(reply, buildExperiment({ projectId, ...parsed.data }));
   });
 
   // --- user lookup ---

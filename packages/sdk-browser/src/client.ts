@@ -130,6 +130,13 @@ export class AmplioClient {
     userProperties?: Properties,
   ): void {
     const now = Date.now();
+    // Tag every event with the current flag assignments so experiments can
+    // break any metric down by variant. $flag_<key> = variant (or on/off).
+    const assignment = this.flagAssignments();
+    const mergedProps =
+      Object.keys(assignment).length > 0 || eventProperties
+        ? { ...assignment, ...eventProperties }
+        : undefined;
     const event: SdkEvent = {
       event_type: eventType,
       device_id: this.deviceId,
@@ -138,7 +145,7 @@ export class AmplioClient {
       insert_id: uuid(),
       platform: this.platform,
       ...(this.userId ? { user_id: this.userId } : {}),
-      ...(eventProperties ? { event_properties: eventProperties } : {}),
+      ...(mergedProps ? { event_properties: mergedProps } : {}),
       ...(userProperties ? { user_properties: userProperties } : {}),
       ...(typeof navigator !== "undefined" && navigator.language
         ? { language: navigator.language }
@@ -184,6 +191,15 @@ export class AmplioClient {
   /** All cached flag values. */
   getFlags(): Record<string, FlagValue> {
     return { ...this.flagValues };
+  }
+
+  /** Flag assignments as event properties: $flag_<key> = variant | on | off. */
+  private flagAssignments(): Record<string, string> {
+    const out: Record<string, string> = {};
+    for (const [key, v] of Object.entries(this.flagValues)) {
+      out[`$flag_${key}`] = v.variant ?? (v.on ? "on" : "off");
+    }
+    return out;
   }
 
   /** Send all queued events. Safe to call repeatedly; it self-serializes. */

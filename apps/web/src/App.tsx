@@ -9,6 +9,7 @@ import { Live } from "./views/Live.js";
 import { Dashboards } from "./views/Dashboards.js";
 import { Cohorts } from "./views/Cohorts.js";
 import { Flags } from "./views/Flags.js";
+import { Experiments } from "./views/Experiments.js";
 import { Library } from "./views/Library.js";
 import { Keys } from "./views/Keys.js";
 import { Settings } from "./views/Settings.js";
@@ -23,6 +24,7 @@ type View =
   | "users"
   | "cohorts"
   | "flags"
+  | "experiments"
   | "dashboards"
   | "library"
   | "keys"
@@ -38,6 +40,7 @@ const NAV: { key: View; label: string; glyph: string }[] = [
   { key: "users", label: "Users", glyph: "👤" },
   { key: "cohorts", label: "Cohorts", glyph: "🎯" },
   { key: "flags", label: "Flags", glyph: "🚩" },
+  { key: "experiments", label: "Experiments", glyph: "🧪" },
   { key: "library", label: "Library", glyph: "📁" },
   { key: "keys", label: "API keys", glyph: "🔑" },
   { key: "settings", label: "Settings", glyph: "⚙️" },
@@ -52,6 +55,7 @@ const TITLES: Record<View, { title: string; sub: string }> = {
   users: { title: "Users", sub: "Look up a single user or device and see their full event stream." },
   cohorts: { title: "Cohorts", sub: "Define a group of users by an action, then apply it as a filter in Segmentation." },
   flags: { title: "Flags", sub: "Feature flags and A/B tests. Roll out gradually and evaluate from any SDK." },
+  experiments: { title: "Experiments", sub: "Conversion by variant. Compare how each variant of a flag performs on a goal." },
   dashboards: { title: "Dashboards", sub: "Compose your saved charts into a live grid." },
   library: { title: "Library", sub: "Your saved charts. Open one to load it back into its builder." },
   keys: { title: "API keys", sub: "Write keys ingest events, read keys drive the dashboard." },
@@ -140,6 +144,7 @@ export default function App() {
         {view === "users" && <Users settings={settings} />}
         {view === "cohorts" && <Cohorts settings={settings} />}
         {view === "flags" && <Flags settings={settings} />}
+        {view === "experiments" && <Experiments settings={settings} />}
         {view === "dashboards" && <Dashboards settings={settings} />}
         {view === "library" && <Library settings={settings} onOpen={openChart} />}
         {view === "keys" && <Keys settings={settings} />}

@@ -141,6 +141,28 @@ describe("AmplioClient", () => {
     expect(c.getVariant("unknown")).toBeNull();
   });
 
+  it("tags tracked events with flag assignments ($flag_<key>)", async () => {
+    const mt = mockTransport(ok);
+    const c = new AmplioClient({
+      apiKey: "k",
+      serverUrl: "http://x",
+      flushIntervalMs: 0,
+      storage: store,
+      transport: mt.transport,
+      flagsFetcher: async () => ({
+        "new-checkout": { on: true, variant: "treatment" },
+        "dark-mode": { on: false, variant: null },
+      }),
+    });
+    await c.loadFlags();
+    c.track("purchase", { amount: 10 });
+    await c.flush();
+    const ev = mt.sent[0]!.events[0] as { event_properties: Record<string, string> };
+    expect(ev.event_properties["$flag_new-checkout"]).toBe("treatment");
+    expect(ev.event_properties["$flag_dark-mode"]).toBe("off");
+    expect(ev.event_properties.amount).toBe(10);
+  });
+
   it("identify sends a $identify event with user_properties", async () => {
     const mt = mockTransport(ok);
     const c = makeClient(store, mt);

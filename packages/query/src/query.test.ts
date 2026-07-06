@@ -5,6 +5,7 @@ import { buildRetention } from "./retention.js";
 import { buildEventNames, buildPropertyKeys } from "./meta.js";
 import { buildUserActivity, buildUserSummary } from "./user.js";
 import { buildLiveEvents, buildStats } from "./live.js";
+import { buildExperiment } from "./experiment.js";
 
 const range = { from: 1_700_000_000_000, to: 1_700_600_000_000 };
 
@@ -203,5 +204,26 @@ describe("live builders", () => {
     expect(q.sql).toContain("count() AS total");
     expect(q.sql).toContain("countIf(server_received_time_ms >");
     expect(Object.values(q.params)).toContain(now - 3_600_000);
+  });
+});
+
+describe("buildExperiment", () => {
+  it("splits by the flag property and counts exposed + converted uniques", () => {
+    const q = buildExperiment({
+      projectId: "p",
+      flagKey: "new-checkout",
+      exposureEvent: "app_open",
+      goalEvent: "purchase",
+      range,
+    });
+    expect(q.sql).toContain("uniqExactIf(if(user_id != '', user_id, device_id), event_type =");
+    expect(q.sql).toContain("AS exposed");
+    expect(q.sql).toContain("AS converted");
+    expect(q.sql).toContain("GROUP BY variant");
+    // the flag property is bound as a param, never inlined
+    expect(Object.values(q.params)).toContain("$flag_new-checkout");
+    expect(q.sql).not.toContain("$flag_new-checkout");
+    expect(Object.values(q.params)).toContain("app_open");
+    expect(Object.values(q.params)).toContain("purchase");
   });
 });

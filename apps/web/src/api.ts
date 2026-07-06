@@ -183,6 +183,17 @@ export const createCohort = (s: Settings, body: { name: string; definition: Coho
   post<{ data: Cohort }>(s, "/cohorts", body).then((r) => r.data);
 export const deleteCohort = (s: Settings, id: string) => del(s, `/cohorts/${id}`);
 
+// --- experiments ---
+export interface ExperimentRow {
+  variant: string;
+  exposed: string;
+  converted: string;
+}
+export const queryExperiment = (
+  s: Settings,
+  body: { flagKey: string; exposureEvent: string; goalEvent: string; range: TimeRange },
+) => post<{ data: ExperimentRow[] }>(s, "/query/experiment", body).then((r) => r.data);
+
 // --- feature flags ---
 export interface FlagVariant {
   key: string;
