@@ -149,7 +149,7 @@ describe("AmplioClient", () => {
       flushIntervalMs: 0,
       storage: store,
       transport: mockTransport(ok).transport,
-      flagsFetcher: async () => {
+      flagsFetcher: async (): Promise<Record<string, { on: boolean; variant: string | null }>> => {
         call++;
         return call === 1
           ? { "flag-a": { on: true, variant: null } }
