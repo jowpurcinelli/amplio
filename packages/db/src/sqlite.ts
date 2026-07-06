@@ -11,8 +11,10 @@ import type {
   Flag,
   FlagInput,
   KeyKind,
+  NewUser,
   ResolvedKey,
   Store,
+  User,
 } from "./types.js";
 
 const ORG_ID = "00000000-0000-0000-0000-000000000001";
@@ -77,6 +79,10 @@ export class SqliteStore implements Store {
         UNIQUE(project_id, key)
       );
       CREATE INDEX IF NOT EXISTS flags_project_idx ON flags(project_id);
+      CREATE TABLE IF NOT EXISTS users (
+        id TEXT PRIMARY KEY, org_id TEXT, email TEXT NOT NULL UNIQUE, name TEXT,
+        password_hash TEXT NOT NULL, created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      );
     `);
     this.db.prepare(`INSERT OR IGNORE INTO organizations (id, name) VALUES (?, 'Demo Org')`).run(ORG_ID);
     this.db.prepare(`INSERT OR IGNORE INTO projects (id, org_id, name) VALUES (?, ?, 'dev-project')`).run(PROJECT_ID, ORG_ID);
@@ -201,6 +207,27 @@ export class SqliteStore implements Store {
     return this.db.prepare(`DELETE FROM cohorts WHERE id = ? AND project_id = ?`).run(id, projectId).changes as number > 0;
   }
 
+  async createUser(input: NewUser): Promise<User> {
+    const row = this.db
+      .prepare(
+        `INSERT INTO users (id, org_id, email, name, password_hash) VALUES (?, ?, ?, ?, ?) RETURNING *`,
+      )
+      .get(randomUUID(), input.orgId, input.email.toLowerCase(), input.name, input.passwordHash);
+    return mapUser(row);
+  }
+
+  async getUser(id: string): Promise<User | null> {
+    const row = this.db.prepare(`SELECT * FROM users WHERE id = ?`).get(id);
+    return row ? mapUser(row) : null;
+  }
+
+  async getCredentials(email: string): Promise<{ user: User; passwordHash: string } | null> {
+    const row = this.db.prepare(`SELECT * FROM users WHERE email = ?`).get(email.toLowerCase()) as
+      | { password_hash: string }
+      | undefined;
+    return row ? { user: mapUser(row), passwordHash: row.password_hash } : null;
+  }
+
   async listFlags(projectId: string): Promise<Flag[]> {
     return this.db
       .prepare(`SELECT * FROM flags WHERE project_id = ? ORDER BY key`)
@@ -298,6 +325,15 @@ function mapCohort(row: any): Cohort {
     projectId: row.project_id,
     name: row.name,
     definition: JSON.parse(row.definition),
+    createdAt: row.created_at,
+  };
+}
+function mapUser(row: any): User {
+  return {
+    id: row.id,
+    orgId: row.org_id ?? null,
+    email: row.email,
+    name: row.name ?? null,
     createdAt: row.created_at,
   };
 }

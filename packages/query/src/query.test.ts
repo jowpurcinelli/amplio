@@ -52,6 +52,21 @@ describe("buildSegmentation", () => {
     expect(Object.values(q.params)).toContain(5);
   });
 
+  it("compiles a 'contains' filter as an OR over all values", () => {
+    const q = buildSegmentation({
+      projectId: "proj",
+      eventType: "signup",
+      range,
+      granularity: "day",
+      measure: "total",
+      filters: [{ scope: "event", key: "country", op: "contains", values: ["BR", "US"] }],
+    });
+    expect((q.sql.match(/position\(/g) || []).length).toBe(2);
+    expect(q.sql).toContain(" OR ");
+    expect(Object.values(q.params)).toContain("BR");
+    expect(Object.values(q.params)).toContain("US");
+  });
+
   it("restricts to a cohort with an IN subquery when cohort is set", () => {
     const q = buildSegmentation({
       projectId: "proj",

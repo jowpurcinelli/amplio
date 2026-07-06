@@ -63,7 +63,13 @@ async function startServices(scripts, baseDir, log) {
     PORT: "8787",
     AMPLIO_DEV_API_KEYS: "dev-key:dev-project",
   });
-  await waitUntil(() => httpOk("http://127.0.0.1:8787/health"), { timeoutMs: 30000 });
+  // ingest must be healthy (it initializes the SQLite schema) before api starts,
+  // or the two race to create the same file. Abort if it never comes up.
+  const ingestHealthy = await waitUntil(() => httpOk("http://127.0.0.1:8787/health"), { timeoutMs: 30000 });
+  if (!ingestHealthy) {
+    try { ingest.kill(); } catch { /* ignore */ }
+    throw new Error("the ingest service did not become healthy");
+  }
 
   const api = spawnSvc("api", scripts.api, {
     ...baseEnv,

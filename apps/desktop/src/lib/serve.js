@@ -23,7 +23,7 @@ function serveSpa(dir, port = 8790) {
     const server = http.createServer((req, res) => {
       const urlPath = decodeURIComponent((req.url || "/").split("?")[0]);
       let filePath = path.join(dir, urlPath);
-      if (!filePath.startsWith(dir)) {
+      if (filePath !== dir && !filePath.startsWith(dir + path.sep)) {
         res.writeHead(403).end("forbidden");
         return;
       }

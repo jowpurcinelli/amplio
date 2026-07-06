@@ -38,6 +38,20 @@ export interface Cohort {
   createdAt: string;
 }
 
+export interface User {
+  id: string;
+  orgId: string | null;
+  email: string;
+  name: string | null;
+  createdAt: string;
+}
+export interface NewUser {
+  orgId: string | null;
+  email: string;
+  name: string | null;
+  passwordHash: string;
+}
+
 export interface FlagVariant {
   key: string;
   weight: number;
@@ -103,6 +117,10 @@ export interface Store {
   listCohorts(projectId: string): Promise<Cohort[]>;
   createCohort(projectId: string, input: CohortInput): Promise<Cohort>;
   deleteCohort(projectId: string, id: string): Promise<boolean>;
+
+  createUser(input: NewUser): Promise<User>;
+  getUser(id: string): Promise<User | null>;
+  getCredentials(email: string): Promise<{ user: User; passwordHash: string } | null>;
 
   listFlags(projectId: string): Promise<Flag[]>;
   getFlag(projectId: string, key: string): Promise<Flag | null>;

@@ -19,7 +19,10 @@ export function buildRetention(q: RetentionQuery): CompiledQuery {
   const cohortRange = rangeClause(q.range, p);
   const cohortFilters = compileFilters(q.filters, p);
   const retEvent = p.bind(returnEvent, "String");
-  const retRange = rangeClause(q.range, p);
+  // The return window must extend `days` beyond the cohort window, or recent
+  // cohorts (whose first event is near range.to) could never be observed at
+  // later day offsets and retention would be undercounted at its right edge.
+  const retRange = rangeClause({ from: q.range.from, to: q.range.to + q.days * 86_400_000 }, p);
   const maxDays = p.bind(q.days, "UInt32");
 
   const sql = `WITH cohort AS (

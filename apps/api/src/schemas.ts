@@ -49,6 +49,17 @@ export const userBody = z.object({
   limit: z.number().int().positive().max(1000).optional(),
 });
 
+export const signupBody = z.object({
+  email: z.string().email().max(320),
+  password: z.string().min(8).max(200),
+  name: z.string().max(200).optional(),
+});
+
+export const loginBody = z.object({
+  email: z.string().email().max(320),
+  password: z.string().min(1).max(200),
+});
+
 export const experimentBody = z.object({
   flagKey: z.string().min(1).max(200),
   exposureEvent: z.string().min(1),

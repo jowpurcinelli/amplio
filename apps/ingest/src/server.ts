@@ -1,5 +1,6 @@
 import Fastify, { type FastifyInstance } from "fastify";
 import cors from "@fastify/cors";
+import { z } from "zod";
 import { ingestRequest, type IngestResponse, type StoredEvent } from "@amplio/schema";
 import type { ClickHouseClient } from "@clickhouse/client";
 import { evaluateFlag, type Store } from "@amplio/db";
@@ -7,6 +8,23 @@ import type { Config } from "./config.js";
 import { KeyResolver } from "./auth.js";
 import { normalize } from "./normalize.js";
 import { insertEvents, insertReplayEvents, type ReplayRow } from "./clickhouse.js";
+
+const replayRequest = z.object({
+  api_key: z.string().min(1),
+  replay_id: z.string().min(1).max(200),
+  user_id: z.string().max(512).optional(),
+  device_id: z.string().max(512).optional(),
+  events: z
+    .array(
+      z.object({
+        seq: z.number().int().nonnegative(),
+        ts: z.number().int().nonnegative(),
+        data: z.unknown(),
+      }),
+    )
+    .min(1)
+    .max(5000),
+});
 
 export interface ServerDeps {
   cfg: Config;
@@ -84,18 +102,13 @@ export function buildServer(deps: ServerDeps): FastifyInstance {
 
   // Session replay ingestion. The replay SDK posts batches of rrweb events.
   app.post("/replay", async (req, reply) => {
-    const body = req.body as {
-      api_key?: string;
-      replay_id?: string;
-      user_id?: string;
-      device_id?: string;
-      events?: Array<{ seq: number; ts: number; data: unknown }>;
-    };
-    const projectId = await keys.resolve(body.api_key ?? "");
-    if (!projectId) return reply.status(401).send({ code: 401, error: "invalid api_key" });
-    if (!body.replay_id || !Array.isArray(body.events) || body.events.length === 0) {
-      return reply.status(400).send({ code: 400, error: "replay_id and events are required" });
+    const parsed = replayRequest.safeParse(req.body);
+    if (!parsed.success) {
+      return reply.status(400).send({ code: 400, error: parsed.error.issues[0]?.message ?? "invalid payload" });
     }
+    const body = parsed.data;
+    const projectId = await keys.resolve(body.api_key);
+    if (!projectId) return reply.status(401).send({ code: 401, error: "invalid api_key" });
     const rows: ReplayRow[] = body.events.map((e) => ({
       project_id: projectId,
       replay_id: body.replay_id!,

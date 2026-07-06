@@ -141,6 +141,27 @@ describe("AmplioClient", () => {
     expect(c.getVariant("unknown")).toBeNull();
   });
 
+  it("merges a keyed loadFlags into the cache instead of wiping it", async () => {
+    let call = 0;
+    const c = new AmplioClient({
+      apiKey: "k",
+      serverUrl: "http://x",
+      flushIntervalMs: 0,
+      storage: store,
+      transport: mockTransport(ok).transport,
+      flagsFetcher: async () => {
+        call++;
+        return call === 1
+          ? { "flag-a": { on: true, variant: null } }
+          : { "flag-b": { on: true, variant: "v2" } };
+      },
+    });
+    await c.loadFlags(); // full load -> flag-a
+    await c.loadFlags(["flag-b"]); // keyed -> must not wipe flag-a
+    expect(c.isEnabled("flag-a")).toBe(true);
+    expect(c.getVariant("flag-b")).toBe("v2");
+  });
+
   it("tags tracked events with flag assignments ($flag_<key>)", async () => {
     const mt = mockTransport(ok);
     const c = new AmplioClient({

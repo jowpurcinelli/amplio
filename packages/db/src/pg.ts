@@ -12,8 +12,10 @@ import type {
   Flag,
   FlagInput,
   KeyKind,
+  NewUser,
   ResolvedKey,
   Store,
+  User,
 } from "./types.js";
 
 const { Pool } = pg;
@@ -168,6 +170,32 @@ export class PgStore implements Store {
     return (r.rowCount ?? 0) > 0;
   }
 
+  async createUser(input: NewUser): Promise<User> {
+    const r = await this.pool.query(
+      `INSERT INTO users (org_id, email, name, password_hash) VALUES ($1, $2, $3, $4)
+       RETURNING id, org_id, email, name, created_at`,
+      [input.orgId, input.email.toLowerCase(), input.name, input.passwordHash],
+    );
+    return mapUser(r.rows[0]);
+  }
+
+  async getUser(id: string): Promise<User | null> {
+    const r = await this.pool.query(
+      `SELECT id, org_id, email, name, created_at FROM users WHERE id = $1`,
+      [id],
+    );
+    return r.rows[0] ? mapUser(r.rows[0]) : null;
+  }
+
+  async getCredentials(email: string): Promise<{ user: User; passwordHash: string } | null> {
+    const r = await this.pool.query(
+      `SELECT id, org_id, email, name, created_at, password_hash FROM users WHERE email = $1`,
+      [email.toLowerCase()],
+    );
+    const row = r.rows[0];
+    return row ? { user: mapUser(row), passwordHash: row.password_hash } : null;
+  }
+
   async listFlags(projectId: string): Promise<Flag[]> {
     const r = await this.pool.query(
       `SELECT id, project_id, key, description, enabled, rollout, variants, created_at, updated_at
@@ -225,8 +253,8 @@ function mapKey(row: any): ApiKey {
     kind: row.kind,
     key: row.key,
     label: row.label,
-    createdAt: String(row.created_at),
-    revokedAt: row.revoked_at ? String(row.revoked_at) : null,
+    createdAt: new Date(row.created_at).toISOString(),
+    revokedAt: row.revoked_at ? new Date(row.revoked_at).toISOString() : null,
   };
 }
 function mapChart(row: any): Chart {
@@ -236,8 +264,8 @@ function mapChart(row: any): Chart {
     name: row.name,
     kind: row.kind,
     definition: row.definition,
-    createdAt: String(row.created_at),
-    updatedAt: String(row.updated_at),
+    createdAt: new Date(row.created_at).toISOString(),
+    updatedAt: new Date(row.updated_at).toISOString(),
   };
 }
 function mapDashboard(row: any): Dashboard {
@@ -246,8 +274,8 @@ function mapDashboard(row: any): Dashboard {
     projectId: row.project_id,
     name: row.name,
     layout: row.layout,
-    createdAt: String(row.created_at),
-    updatedAt: String(row.updated_at),
+    createdAt: new Date(row.created_at).toISOString(),
+    updatedAt: new Date(row.updated_at).toISOString(),
   };
 }
 function mapCohort(row: any): Cohort {
@@ -256,7 +284,16 @@ function mapCohort(row: any): Cohort {
     projectId: row.project_id,
     name: row.name,
     definition: row.definition,
-    createdAt: String(row.created_at),
+    createdAt: new Date(row.created_at).toISOString(),
+  };
+}
+function mapUser(row: any): User {
+  return {
+    id: row.id,
+    orgId: row.org_id ?? null,
+    email: row.email,
+    name: row.name ?? null,
+    createdAt: new Date(row.created_at).toISOString(),
   };
 }
 function mapFlag(row: any): Flag {
@@ -268,7 +305,7 @@ function mapFlag(row: any): Flag {
     enabled: Boolean(row.enabled),
     rollout: Number(row.rollout),
     variants: typeof row.variants === "string" ? JSON.parse(row.variants) : row.variants,
-    createdAt: String(row.created_at),
-    updatedAt: String(row.updated_at),
+    createdAt: new Date(row.created_at).toISOString(),
+    updatedAt: new Date(row.updated_at).toISOString(),
   };
 }

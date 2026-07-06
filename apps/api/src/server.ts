@@ -16,9 +16,9 @@ import {
   buildReplayEvents,
   type CompiledQuery,
 } from "@amplio/query";
-import { makeStore, type Store } from "@amplio/db";
+import { makeStore, hashPassword, verifyPassword, signToken, verifyToken, type Store } from "@amplio/db";
 import type { ApiConfig } from "./config.js";
-import { funnelBody, retentionBody, segmentationBody, userBody, experimentBody, chartBody, dashboardBody, cohortBody, keyBody, flagBody } from "./schemas.js";
+import { funnelBody, retentionBody, segmentationBody, userBody, experimentBody, chartBody, dashboardBody, cohortBody, keyBody, flagBody, signupBody, loginBody } from "./schemas.js";
 
 export interface ApiDeps {
   cfg: ApiConfig;
@@ -58,6 +58,16 @@ export function buildApi(deps: ApiDeps): FastifyInstance {
   const app = Fastify({ logger: { level: process.env.LOG_LEVEL ?? "info" } });
   app.register(cors, { origin: true });
 
+  // Map a malformed UUID path param (Postgres 22P02) to a clean 400 instead of
+  // letting the driver error surface as a 500.
+  app.setErrorHandler((err, _req, reply) => {
+    if ((err as { code?: string }).code === "22P02") {
+      return reply.status(400).send({ error: "invalid id" });
+    }
+    reply.log.error(err);
+    reply.status(500).send({ error: "internal error" });
+  });
+
   const extractKey = (req: FastifyRequest): string => {
     const header = req.headers.authorization ?? "";
     return (header.startsWith("Bearer ") ? header.slice(7) : header).trim();
@@ -74,7 +84,9 @@ export function buildApi(deps: ApiDeps): FastifyInstance {
         cache.set(key, resolved.projectId);
         return resolved.projectId;
       }
-      // fall through to env fallback so local dev works without a store row
+      // A store is configured: it is the source of truth. Do NOT accept the
+      // env fallback keys (the built-in dev-read-key must never work in prod).
+      return null;
     }
     const envProject = cfg.readKeys.get(key);
     if (envProject) {
@@ -112,6 +124,49 @@ export function buildApi(deps: ApiDeps): FastifyInstance {
   };
 
   app.get("/health", async () => ({ status: "ok", service: "amplio-api", metadata: Boolean(store) }));
+
+  // --- user auth (session tokens; additive, does not affect the API-key path) ---
+  app.post("/auth/signup", async (req, reply) => {
+    const s = requireStore(reply);
+    if (!s) return;
+    const parsed = signupBody.safeParse(req.body);
+    if (!parsed.success) return reply.status(400).send({ error: parsed.error.issues[0]?.message });
+    try {
+      const user = await s.createUser({
+        orgId: null,
+        email: parsed.data.email,
+        name: parsed.data.name ?? null,
+        passwordHash: hashPassword(parsed.data.password),
+      });
+      const token = signToken({ sub: user.id, email: user.email }, cfg.authSecret);
+      reply.send({ token, user });
+    } catch {
+      reply.status(409).send({ error: "an account with that email already exists" });
+    }
+  });
+
+  app.post("/auth/login", async (req, reply) => {
+    const s = requireStore(reply);
+    if (!s) return;
+    const parsed = loginBody.safeParse(req.body);
+    if (!parsed.success) return reply.status(400).send({ error: parsed.error.issues[0]?.message });
+    const creds = await s.getCredentials(parsed.data.email);
+    if (!creds || !verifyPassword(parsed.data.password, creds.passwordHash)) {
+      return reply.status(401).send({ error: "invalid email or password" });
+    }
+    const token = signToken({ sub: creds.user.id, email: creds.user.email }, cfg.authSecret);
+    reply.send({ token, user: creds.user });
+  });
+
+  app.get("/auth/me", async (req, reply) => {
+    const s = requireStore(reply);
+    if (!s) return;
+    const payload = verifyToken(extractKey(req), cfg.authSecret);
+    if (!payload) return reply.status(401).send({ error: "not authenticated" });
+    const user = await s.getUser(payload.sub);
+    if (!user) return reply.status(401).send({ error: "not authenticated" });
+    reply.send({ user });
+  });
 
   // --- metadata pickers ---
   app.get("/meta/events", async (req, reply) => {

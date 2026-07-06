@@ -26,6 +26,8 @@ export interface ReplaySession {
   stop: () => void;
 }
 
+const MAX_BUFFER = 10000;
+
 function uuid(): string {
   const c = globalThis.crypto;
   if (c && typeof c.randomUUID === "function") return c.randomUUID();
@@ -45,12 +47,15 @@ const rrwebRecorder: Recorder = (emit) => {
 };
 
 const fetchFetcher: ReplayFetcher = async (url, body) => {
-  await fetch(url, {
+  const res = await fetch(url, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body,
     keepalive: true,
   });
+  // Throw on failure so recordSession's flush requeues the batch instead of
+  // silently dropping the replay chunk.
+  if (!res.ok) throw new Error(`replay ingest failed: ${res.status}`);
 };
 
 /** Begin recording a replay for the current page. */
@@ -81,7 +86,9 @@ export function recordSession(config: ReplayConfig): ReplaySession {
         }),
       );
     } catch {
-      buffer = batch.concat(buffer); // requeue on failure
+      // Requeue on failure, but cap the buffer so prolonged outages cannot
+      // grow it without bound (keep the most recent events).
+      buffer = batch.concat(buffer).slice(-MAX_BUFFER);
     } finally {
       flushing = false;
     }

@@ -14,6 +14,8 @@ export interface ApiConfig {
   dbSpec: string | undefined;
   /** Fallback read key -> project id when no store is configured. */
   readKeys: Map<string, string>;
+  /** HMAC secret for signing session tokens. */
+  authSecret: string;
 }
 
 function parseReadKeys(raw: string | undefined): Map<string, string> {
@@ -41,5 +43,6 @@ export function loadApiConfig(env: NodeJS.ProcessEnv = process.env): ApiConfig {
     },
     dbSpec: env.AMPLIO_DB ?? env.DATABASE_URL,
     readKeys: parseReadKeys(env.AMPLIO_READ_KEYS),
+    authSecret: env.SESSION_SECRET ?? "amplio-dev-session-secret",
   };
 }

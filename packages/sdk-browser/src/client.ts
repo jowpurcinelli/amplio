@@ -172,7 +172,10 @@ export class AmplioClient {
       ...(keys && keys.length > 0 ? { keys } : {}),
     });
     try {
-      this.flagValues = await this.flagsFetcher(`${this.serverUrl}/flags/evaluate`, body);
+      const fetched = await this.flagsFetcher(`${this.serverUrl}/flags/evaluate`, body);
+      // A keyed request only evaluates a subset; merge so earlier-loaded flags
+      // are not wiped. A full request replaces the cache.
+      this.flagValues = keys && keys.length > 0 ? { ...this.flagValues, ...fetched } : fetched;
     } catch {
       // keep the last known values on a transient failure
     }

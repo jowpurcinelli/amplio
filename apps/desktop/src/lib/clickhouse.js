@@ -21,6 +21,13 @@ function buildDir() {
 
 function downloadTo(url, dest, onProgress) {
   return new Promise((resolve, reject) => {
+    const cleanup = () => {
+      try {
+        fs.unlinkSync(dest);
+      } catch {
+        /* ignore */
+      }
+    };
     const req = https.get(url, (res) => {
       if (res.statusCode && res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
         res.resume();
@@ -28,6 +35,7 @@ function downloadTo(url, dest, onProgress) {
         return;
       }
       if (res.statusCode !== 200) {
+        res.resume();
         reject(new Error(`download failed: HTTP ${res.statusCode}`));
         return;
       }
@@ -38,11 +46,34 @@ function downloadTo(url, dest, onProgress) {
         got += c.length;
         if (onProgress && total) onProgress(got / total);
       });
+      res.on("error", (e) => {
+        file.destroy();
+        cleanup();
+        reject(e);
+      });
+      file.on("error", (e) => {
+        cleanup();
+        reject(e);
+      });
       res.pipe(file);
-      file.on("finish", () => file.close(() => resolve()));
-      file.on("error", reject);
+      file.on("finish", () =>
+        file.close(() => {
+          // A partial download must never be treated as a valid binary.
+          if (total && got !== total) {
+            cleanup();
+            reject(new Error(`incomplete download: got ${got} of ${total} bytes`));
+            return;
+          }
+          resolve();
+        }),
+      );
     });
-    req.on("error", reject);
+    req.on("error", (e) => {
+      cleanup();
+      reject(e);
+    });
+    // Idle timeout: a stalled download rejects instead of hanging boot forever.
+    req.setTimeout(60000, () => req.destroy(new Error("download timed out")));
   });
 }
 
@@ -95,17 +126,26 @@ async function ensureBinary(baseDir, log, onProgress) {
   const bin = path.join(dir, process.platform === "win32" ? "clickhouse.exe" : "clickhouse");
   if (fs.existsSync(bin) && fs.statSync(bin).size > 1_000_000) return bin;
 
+  // Download to a temp file and only rename into place once complete, so a
+  // partial or corrupt download never leaves an unbootable binary behind.
+  const tmp = bin + ".download";
+  try {
+    fs.unlinkSync(tmp);
+  } catch {
+    /* ignore */
+  }
   const url = `https://builds.clickhouse.com/master/${buildDir()}/clickhouse`;
   log("downloading ClickHouse (~160MB, one time)…");
-  await downloadTo(url, bin, onProgress);
-  fs.chmodSync(bin, 0o755);
+  await downloadTo(url, tmp, onProgress);
+  fs.chmodSync(tmp, 0o755);
   if (process.platform === "darwin") {
     try {
-      spawnSync("xattr", ["-d", "com.apple.quarantine", bin]);
+      spawnSync("xattr", ["-d", "com.apple.quarantine", tmp]);
     } catch {
       /* not fatal */
     }
   }
+  fs.renameSync(tmp, bin);
   log("ClickHouse downloaded");
   return bin;
 }

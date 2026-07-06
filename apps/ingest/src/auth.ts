@@ -23,6 +23,8 @@ export class KeyResolver {
     if (this.store) {
       const resolved = await this.store.resolveKey(apiKey);
       if (resolved && resolved.kind === "write") return this.remember(apiKey, resolved.projectId);
+      // A store is configured: do not accept the built-in dev key in prod.
+      return null;
     }
     const envProject = this.cfg.devApiKeys.get(apiKey);
     if (envProject) return this.remember(apiKey, envProject);

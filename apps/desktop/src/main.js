@@ -159,7 +159,11 @@ app.on("window-all-closed", () => {
 });
 
 app.on("activate", () => {
-  if (BrowserWindow.getAllWindows().length === 0) createWindow();
+  if (BrowserWindow.getAllWindows().length === 0) {
+    createWindow();
+    // If the stack is already up, go straight to the dashboard, not the boot page.
+    if (renderer && win) win.loadURL(renderer.url);
+  }
 });
 
 app.on("before-quit", () => {

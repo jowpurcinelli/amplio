@@ -55,7 +55,8 @@ export function compileFilter(f: PropertyFilter, p: Params): string {
     case "is_not":
       return `${cell} NOT IN ${p.bind(values, "Array(String)")}`;
     case "contains":
-      return `position(${cell}, ${p.bind(values[0] ?? "", "String")}) > 0`;
+      if (values.length === 0) return "0";
+      return `(${values.map((v) => `position(${cell}, ${p.bind(v, "String")}) > 0`).join(" OR ")})`;
     case "gt":
       return `toFloat64OrNull(${cell}) > ${p.bind(Number(values[0] ?? 0), "Float64")}`;
     case "lt":
