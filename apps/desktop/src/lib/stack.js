@@ -1,5 +1,6 @@
 "use strict";
 const { spawn } = require("node:child_process");
+const { randomUUID } = require("node:crypto");
 const fs = require("node:fs");
 const http = require("node:http");
 const path = require("node:path");
@@ -49,6 +50,9 @@ async function startServices(scripts, baseDir, log) {
     CLICKHOUSE_DATABASE: "amplio",
     AMPLIO_DB: `sqlite:${path.join(baseDir, "amplio.db")}`,
     DATABASE_URL: "", // never let an inherited Postgres URL override SQLite
+    // Single-user local app; session tokens are unused, but pass a random
+    // per-boot secret so the API never rides the public built-in default.
+    SESSION_SECRET: randomUUID(),
   };
 
   const spawnSvc = (name, script, env) => {

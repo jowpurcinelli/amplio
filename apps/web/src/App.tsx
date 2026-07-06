@@ -114,16 +114,16 @@ export default function App() {
 
   // Point analytics at a project's read key automatically, keeping the API URL.
   // Persist it so the choice survives a reload even if /me/projects is slow.
+  // Always adopt the target project's key (even when empty) so we never keep
+  // querying the previously selected project's data after switching.
   const selectProject = (p: UserProject) => {
     setActiveProjectId(p.id);
     localStorage.setItem(ACTIVE_PROJECT_KEY, p.id);
-    if (p.readKey) {
-      setSettings((s) => {
-        const next = { ...s, readKey: p.readKey! };
-        saveSettings(next);
-        return next;
-      });
-    }
+    setSettings((s) => {
+      const next = { ...s, readKey: p.readKey ?? "" };
+      saveSettings(next);
+      return next;
+    });
   };
 
   const loadProjects = async (token: string) => {
@@ -147,8 +147,15 @@ export default function App() {
       try {
         const { user: u } = await fetchMe(settings.apiUrl, token);
         setUser(u);
-        await loadProjects(token);
+        // Loading projects is best-effort: a transient failure here must not
+        // invalidate an otherwise-valid session (Settings still works).
+        try {
+          await loadProjects(token);
+        } catch {
+          /* keep the session; projects can load later */
+        }
       } catch {
+        // Only a failed /auth/me means the token is actually invalid.
         clearToken();
       } finally {
         setAuthReady(true);

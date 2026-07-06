@@ -55,12 +55,15 @@ services:
     restart: unless-stopped
     environment:
       API_PORT: 8788
+      NODE_ENV: production
       CLICKHOUSE_URL: http://clickhouse:8123
       CLICKHOUSE_DATABASE: amplio
       CLICKHOUSE_USER: default
       CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD}
       DATABASE_URL: postgres://amplio:${POSTGRES_PASSWORD}@postgres:5432/amplio
       AMPLIO_READ_KEYS: ${AMPLIO_READ_KEYS}
+      # Required in production: signs user session tokens. Use a long random value.
+      SESSION_SECRET: ${SESSION_SECRET}
     depends_on:
       clickhouse:
         condition: service_healthy

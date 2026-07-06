@@ -29,6 +29,7 @@ cp deploy/.env.prod.example deploy/.env
 # edit deploy/.env:
 #   AMPLIO_DOMAIN=amplio.yourdomain.com
 #   CLICKHOUSE_PASSWORD / POSTGRES_PASSWORD: strong secrets
+#   SESSION_SECRET: a long random value (openssl rand -hex 32); required in production
 #   AMPLIO_WRITE_KEYS / AMPLIO_READ_KEYS: your project keys
 ```
 

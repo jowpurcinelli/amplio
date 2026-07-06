@@ -26,6 +26,21 @@ export interface ApiDeps {
   store?: Store | null;
 }
 
+/**
+ * A unique-constraint violation, across both store backends: Postgres surfaces
+ * SQLSTATE 23505; node:sqlite throws with "UNIQUE constraint failed" in the
+ * message. Anything else is a real error and must not be reported as a conflict.
+ */
+export function isUniqueViolation(err: unknown): boolean {
+  if (typeof err !== "object" || err === null) return false;
+  const code = (err as { code?: unknown }).code;
+  if (code === "23505" || code === "SQLITE_CONSTRAINT_UNIQUE" || code === "SQLITE_CONSTRAINT_PRIMARYKEY") {
+    return true;
+  }
+  const message = (err as { message?: unknown }).message;
+  return typeof message === "string" && /UNIQUE constraint failed/i.test(message);
+}
+
 export function makeApiClient(cfg: ApiConfig): ClickHouseClient {
   return createClient({
     url: cfg.clickhouse.url,
@@ -131,6 +146,11 @@ export function buildApi(deps: ApiDeps): FastifyInstance {
     if (!s) return;
     const parsed = signupBody.safeParse(req.body);
     if (!parsed.success) return reply.status(400).send({ error: parsed.error.issues[0]?.message });
+    // Fail fast on a known-duplicate email before provisioning anything, so the
+    // common case never creates an org just to roll it back.
+    if (await s.getCredentials(parsed.data.email)) {
+      return reply.status(409).send({ error: "an account with that email already exists" });
+    }
     // Provision a full workspace so a fresh signup lands on a working project:
     // an org, a default project, and read + write keys, all linked to the user.
     let org: { id: string } | null = null;
@@ -147,12 +167,18 @@ export function buildApi(deps: ApiDeps): FastifyInstance {
       });
       const token = signToken({ sub: user.id, email: user.email }, cfg.authSecret);
       reply.send({ token, user });
-    } catch {
-      // The email is the only uniquely-constrained field, so a failure here is a
-      // duplicate account. Roll the just-created org back so we do not leak an
-      // orphaned org/project/keys on the retry.
+    } catch (err) {
+      // Roll the just-created org back so a failure never leaks an orphaned
+      // org/project/keys.
       if (org) await s.deleteOrg(org.id).catch(() => {});
-      reply.status(409).send({ error: "an account with that email already exists" });
+      // A duplicate email that slipped past the pre-check (a race) is a 409;
+      // anything else is a real server error and must surface as 5xx so it is
+      // not masked as "account already exists".
+      if (isUniqueViolation(err)) {
+        return reply.status(409).send({ error: "an account with that email already exists" });
+      }
+      req.log.error(err, "signup provisioning failed");
+      return reply.status(500).send({ error: "could not create the account" });
     }
   });
 
