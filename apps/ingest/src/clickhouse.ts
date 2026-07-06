@@ -113,11 +113,53 @@ export function makeClient(cfg: Config): ClickHouseClient {
   });
 }
 
+export const REPLAY_DDL = (database: string) => `
+CREATE TABLE IF NOT EXISTS ${database}.replay_events
+(
+  project_id LowCardinality(String),
+  replay_id String,
+  user_id String,
+  device_id String,
+  seq UInt32,
+  ts_ms UInt64,
+  ts DateTime64(3, 'UTC') MATERIALIZED fromUnixTimestamp64Milli(ts_ms),
+  data String
+)
+ENGINE = MergeTree
+PARTITION BY toYYYYMMDD(ts)
+ORDER BY (project_id, replay_id, seq)
+SETTINGS index_granularity = 8192
+`;
+
+export interface ReplayRow {
+  project_id: string;
+  replay_id: string;
+  user_id: string;
+  device_id: string;
+  seq: number;
+  ts_ms: number;
+  data: string;
+}
+
 export async function ensureSchema(client: ClickHouseClient, cfg: Config): Promise<void> {
   await client.command({
     query: `CREATE DATABASE IF NOT EXISTS ${cfg.clickhouse.database}`,
   });
   await client.command({ query: EVENTS_DDL(cfg.clickhouse.database) });
+  await client.command({ query: REPLAY_DDL(cfg.clickhouse.database) });
+}
+
+export async function insertReplayEvents(
+  client: ClickHouseClient,
+  cfg: Config,
+  rows: ReplayRow[],
+): Promise<void> {
+  if (rows.length === 0) return;
+  await client.insert({
+    table: `${cfg.clickhouse.database}.replay_events`,
+    values: rows,
+    format: "JSONEachRow",
+  });
 }
 
 export async function insertEvents(

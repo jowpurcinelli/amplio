@@ -6,7 +6,7 @@ import { evaluateFlag, type Store } from "@amplio/db";
 import type { Config } from "./config.js";
 import { KeyResolver } from "./auth.js";
 import { normalize } from "./normalize.js";
-import { insertEvents } from "./clickhouse.js";
+import { insertEvents, insertReplayEvents, type ReplayRow } from "./clickhouse.js";
 
 export interface ServerDeps {
   cfg: Config;
@@ -81,6 +81,33 @@ export function buildServer(deps: ServerDeps): FastifyInstance {
     };
     return { status: 200, response };
   };
+
+  // Session replay ingestion. The replay SDK posts batches of rrweb events.
+  app.post("/replay", async (req, reply) => {
+    const body = req.body as {
+      api_key?: string;
+      replay_id?: string;
+      user_id?: string;
+      device_id?: string;
+      events?: Array<{ seq: number; ts: number; data: unknown }>;
+    };
+    const projectId = await keys.resolve(body.api_key ?? "");
+    if (!projectId) return reply.status(401).send({ code: 401, error: "invalid api_key" });
+    if (!body.replay_id || !Array.isArray(body.events) || body.events.length === 0) {
+      return reply.status(400).send({ code: 400, error: "replay_id and events are required" });
+    }
+    const rows: ReplayRow[] = body.events.map((e) => ({
+      project_id: projectId,
+      replay_id: body.replay_id!,
+      user_id: body.user_id ?? "",
+      device_id: body.device_id ?? "",
+      seq: e.seq,
+      ts_ms: e.ts,
+      data: typeof e.data === "string" ? e.data : JSON.stringify(e.data),
+    }));
+    await insertReplayEvents(clickhouse, cfg, rows);
+    return reply.send({ code: 200, events_ingested: rows.length });
+  });
 
   // Amplitude HTTP V2 compatible endpoints.
   for (const route of ["/2/httpapi", "/batch"]) {

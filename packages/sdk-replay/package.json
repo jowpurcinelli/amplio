@@ -1,0 +1,29 @@
+{
+  "name": "@amplio/sdk-replay",
+  "version": "0.0.1",
+  "description": "Amplio session replay recorder (rrweb).",
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsc -p tsconfig.json --watch",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run --passWithNoTests"
+  },
+  "dependencies": {
+    "rrweb": "^2.0.0-alpha.18"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.3",
+    "vitest": "^3.2.0"
+  }
+}
