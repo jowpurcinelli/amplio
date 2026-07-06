@@ -6,6 +6,7 @@ coverage/
 .env
 .env.*
 !.env.example
+!deploy/.env.prod.example
 .DS_Store
 .turbo/
 *.tsbuildinfo
