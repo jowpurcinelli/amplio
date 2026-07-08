@@ -3,6 +3,7 @@ import rrwebPlayer from "rrweb-player";
 import "rrweb-player/dist/style.css";
 import type { Settings } from "../config.js";
 import { listReplays, getReplayEvents, type ReplaySummary } from "../api.js";
+import { formatNumber } from "../lib/format.js";
 
 function fmtTime(raw: string): string {
   const d = new Date(raw.replace(" ", "T") + "Z");
@@ -112,7 +113,7 @@ export function Replays({ settings }: { settings: Settings }) {
                     <td style={{ color: "var(--text-secondary)" }}>{r.user_id || r.device_id || "—"}</td>
                     <td style={{ color: "var(--text-secondary)" }}>{fmtTime(r.started)}</td>
                     <td>{fmtDuration(Number(r.duration_s))}</td>
-                    <td style={{ fontVariantNumeric: "tabular-nums" }}>{Number(r.events).toLocaleString()}</td>
+                    <td style={{ fontVariantNumeric: "tabular-nums" }}>{formatNumber(Number(r.events))}</td>
                     <td>
                       <button className="btn secondary" onClick={() => setSelected(r.replay_id)}>
                         Watch

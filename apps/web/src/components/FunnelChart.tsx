@@ -1,3 +1,5 @@
+import { formatNumber, formatPercent } from "../lib/format.js";
+
 export interface FunnelStep {
   name: string;
   count: number;
@@ -9,7 +11,7 @@ interface Props {
 
 function pct(part: number, whole: number): string {
   if (whole <= 0) return "0%";
-  return `${((part / whole) * 100).toFixed(1)}%`;
+  return formatPercent(part / whole);
 }
 
 export function FunnelChart({ steps }: Props) {
@@ -27,7 +29,7 @@ export function FunnelChart({ steps }: Props) {
                 {step.name}
               </span>
               <span style={{ color: "var(--text-secondary)", fontVariantNumeric: "tabular-nums" }}>
-                {step.count.toLocaleString()} · {pct(step.count, top)} of top
+                {formatNumber(step.count)} · {pct(step.count, top)} of top
                 {i > 0 && (
                   <span style={{ color: "var(--muted)" }}> · {pct(step.count, prev)} from prev</span>
                 )}

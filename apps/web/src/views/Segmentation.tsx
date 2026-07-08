@@ -8,6 +8,8 @@ import { SaveBar } from "../components/SaveBar.js";
 import { PRESETS, presetRange } from "../lib/time.js";
 import { segmentationSeries } from "../lib/charts.js";
 import { downloadCsv } from "../lib/csv.js";
+import { formatNumber, formatCompact } from "../lib/format.js";
+import { ChartSkeleton } from "../components/Skeleton.js";
 
 export function Segmentation({
   settings,
@@ -148,21 +150,24 @@ export function Segmentation({
 
       <div className="card">
         {error && <div className="error">{error}</div>}
-        {!rows && !error && <div className="empty">Choose an event and run a query.</div>}
-        {rows && rows.length === 0 && <div className="empty">No events matched this query.</div>}
-        {rows && rows.length > 0 && (
+        {loading && <ChartSkeleton />}
+        {!loading && !rows && !error && (
+          <div className="empty-state">
+            <div className="empty-glyph">📈</div>
+            <div className="empty-title">Choose an event and run a query</div>
+            <div className="empty-hint">Pick an event above, then hit Run to chart its volume or unique users over time.</div>
+          </div>
+        )}
+        {!loading && rows && rows.length === 0 && <div className="empty">No events matched this query.</div>}
+        {!loading && rows && rows.length > 0 && (
           <>
             <div className="stat-row">
               <div className="stat">
-                <div className="stat-val">{total.toLocaleString()}</div>
+                <div className="stat-val">{formatNumber(total)}</div>
                 <div className="stat-label">{measure === "unique" ? "unique users" : "events"} in range</div>
               </div>
             </div>
-            <LineChart
-              labels={labels}
-              series={series}
-              format={(n) => (n >= 1000 ? `${(n / 1000).toFixed(1)}k` : String(Math.round(n)))}
-            />
+            <LineChart labels={labels} series={series} format={formatCompact} />
             {series.length > 1 && (
               <div className="legend">
                 {series.map((s) => (
@@ -205,7 +210,7 @@ export function Segmentation({
                     <tr key={i}>
                       <td>{lab}</td>
                       {series.map((s) => (
-                        <td key={s.name}>{(s.values[i] ?? 0).toLocaleString()}</td>
+                        <td key={s.name}>{formatNumber(s.values[i] ?? 0)}</td>
                       ))}
                     </tr>
                   ))}

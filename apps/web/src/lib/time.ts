@@ -16,17 +16,21 @@ export function presetRange(days: number): { from: number; to: number } {
   return { from: to - days * 86_400_000, to };
 }
 
+// Pin axis labels to en-US so dates read the same everywhere ("Jun 7"), rather
+// than following the viewer's machine locale ("7 de jun.").
+const LABEL_LOCALE = "en-US";
+
 /** Turn a ClickHouse datetime string into a short axis label by granularity. */
 export function bucketLabel(raw: string, granularity: string): string {
   const d = new Date(raw.replace(" ", "T") + "Z");
   if (Number.isNaN(d.getTime())) return raw;
   if (granularity === "hour") {
-    return d.toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric" });
+    return d.toLocaleString(LABEL_LOCALE, { month: "short", day: "numeric", hour: "numeric" });
   }
   if (granularity === "month") {
-    return d.toLocaleString(undefined, { month: "short", year: "2-digit" });
+    return d.toLocaleString(LABEL_LOCALE, { month: "short", year: "2-digit" });
   }
-  return d.toLocaleString(undefined, { month: "short", day: "numeric" });
+  return d.toLocaleString(LABEL_LOCALE, { month: "short", day: "numeric" });
 }
 
 export const SERIES_VARS = [

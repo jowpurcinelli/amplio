@@ -1,6 +1,7 @@
 import { useState } from "react";
 import type { Settings } from "../config.js";
 import { createChart, type ChartKind } from "../api.js";
+import { useToast } from "./Toast.js";
 
 /** A compact "name + save" bar to persist the current analysis as a chart. */
 export function SaveBar({
@@ -13,17 +14,21 @@ export function SaveBar({
   definition: Record<string, unknown>;
 }) {
   const [name, setName] = useState("");
-  const [status, setStatus] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const toast = useToast();
 
   const save = async () => {
     if (!name.trim()) return;
-    setStatus("Saving…");
+    setSaving(true);
     try {
-      await createChart(settings, { name: name.trim(), kind, definition });
-      setStatus(`Saved "${name.trim()}"`);
+      const label = name.trim();
+      await createChart(settings, { name: label, kind, definition });
+      toast.ok(`Saved "${label}"`);
       setName("");
     } catch (e) {
-      setStatus(String(e).includes("503") ? "Saving needs a metadata store (DATABASE_URL)." : String(e));
+      toast.err(String(e).includes("503") ? "Saving needs a metadata store (DATABASE_URL)." : String(e));
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -36,10 +41,9 @@ export function SaveBar({
         onChange={(e) => setName(e.target.value)}
         style={{ minWidth: 240 }}
       />
-      <button className="btn secondary" onClick={save} disabled={!name.trim()}>
-        Save chart
+      <button className="btn secondary" onClick={save} disabled={!name.trim() || saving}>
+        {saving ? "Saving…" : "Save chart"}
       </button>
-      {status && <span style={{ color: "var(--muted)", fontSize: 12 }}>{status}</span>}
     </div>
   );
 }

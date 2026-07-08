@@ -181,6 +181,7 @@ body {
   border-radius: var(--radius);
   padding: 18px;
   margin-bottom: 18px;
+  box-shadow: 0 1px 2px rgba(11, 11, 11, 0.04);
 }
 
 /* Controls */
@@ -204,8 +205,13 @@ body {
   font-weight: 600;
 }
 select,
+textarea,
 input[type="text"],
-input[type="number"] {
+input[type="number"],
+input[type="email"],
+input[type="password"],
+input[type="search"],
+input[type="url"] {
   font: inherit;
   padding: 7px 9px;
   border-radius: 8px;
@@ -213,7 +219,12 @@ input[type="number"] {
   background: var(--page);
   color: var(--text-primary);
 }
+input::placeholder,
+textarea::placeholder {
+  color: var(--muted);
+}
 select:focus,
+textarea:focus,
 input:focus {
   outline: 2px solid color-mix(in srgb, var(--series-1) 55%, transparent);
   outline-offset: -1px;
@@ -227,9 +238,13 @@ input:focus {
   background: var(--series-1);
   color: #fff;
   cursor: pointer;
+  transition: filter 120ms ease, transform 60ms ease, background 120ms ease;
 }
 .btn:hover {
-  filter: brightness(1.05);
+  filter: brightness(1.06);
+}
+.btn:active {
+  transform: translateY(1px);
 }
 .btn.secondary {
   background: transparent;
@@ -319,6 +334,29 @@ input:focus {
   padding: 40px 0;
   text-align: center;
 }
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-secondary);
+  padding: 48px 16px;
+  text-align: center;
+}
+.empty-state .empty-glyph {
+  font-size: 30px;
+  opacity: 0.85;
+  margin-bottom: 2px;
+}
+.empty-state .empty-title {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.empty-state .empty-hint {
+  font-size: 13px;
+  color: var(--muted);
+  max-width: 380px;
+}
 .error {
   color: var(--series-6);
   padding: 10px 0;
@@ -403,4 +441,111 @@ table.data th {
   border: 1px solid var(--border);
   background: var(--surface-1);
   color: var(--text-primary);
+}
+
+/* --- loading skeletons --- */
+@keyframes amplio-shimmer {
+  0% { background-position: -400px 0; }
+  100% { background-position: 400px 0; }
+}
+.skeleton {
+  border-radius: 6px;
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--text-primary) 6%, transparent) 25%,
+    color-mix(in srgb, var(--text-primary) 12%, transparent) 37%,
+    color-mix(in srgb, var(--text-primary) 6%, transparent) 63%
+  );
+  background-size: 800px 100%;
+  animation: amplio-shimmer 1.4s ease-in-out infinite;
+}
+.skeleton-chart {
+  height: 300px;
+  width: 100%;
+}
+.skeleton-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.skeleton-rows .skeleton {
+  height: 16px;
+}
+
+/* --- toasts --- */
+.toast-host {
+  position: fixed;
+  right: 18px;
+  bottom: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  z-index: 50;
+}
+.toast {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 200px;
+  max-width: 360px;
+  padding: 10px 13px;
+  border-radius: 10px;
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.22);
+  font-size: 13px;
+  color: var(--text-primary);
+  animation: amplio-toast-in 160ms ease;
+}
+@keyframes amplio-toast-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.toast .toast-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  flex: none;
+}
+.toast.ok .toast-dot { background: var(--good); }
+.toast.err .toast-dot { background: var(--series-6); }
+
+/* --- sidebar sections --- */
+.nav-section {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  font-weight: 700;
+  padding: 12px 10px 4px;
+}
+.nav-item .nav-glyph {
+  width: 18px;
+  text-align: center;
+  flex: none;
+}
+.sidebar-footer {
+  font-size: 11px;
+  color: var(--muted);
+  padding: 8px 10px 2px;
+  border-top: 1px solid var(--border);
+  margin-top: 6px;
+}
+
+/* --- auth polish --- */
+.auth-screen {
+  background:
+    radial-gradient(1100px 500px at 50% -10%, color-mix(in srgb, var(--series-1) 10%, transparent), transparent),
+    var(--page);
+}
+.auth-card {
+  padding: 24px;
+}
+.auth-tagline {
+  color: var(--text-secondary);
+  font-size: 13px;
+  margin: 0 0 14px;
+}
+.auth-card .field input {
+  width: 100%;
 }

@@ -6,6 +6,7 @@ import { Field, EventSelect } from "../components/Field.js";
 import { LineChart } from "../components/LineChart.js";
 import { SaveBar } from "../components/SaveBar.js";
 import { PRESETS, presetRange, SERIES_VARS } from "../lib/time.js";
+import { formatNumber } from "../lib/format.js";
 import { downloadCsv } from "../lib/csv.js";
 
 export function Retention({
@@ -114,7 +115,7 @@ export function Retention({
           <>
             <div className="stat-row">
               <div className="stat">
-                <div className="stat-val">{cohort.toLocaleString()}</div>
+                <div className="stat-val">{formatNumber(cohort)}</div>
                 <div className="stat-label">users in cohort (day 0)</div>
               </div>
               <div className="stat">
@@ -158,7 +159,7 @@ export function Retention({
                   {labels.map((lab, i) => (
                     <tr key={i}>
                       <td>{lab}</td>
-                      <td>{(byOffset.get(i) ?? 0).toLocaleString()}</td>
+                      <td>{formatNumber(byOffset.get(i) ?? 0)}</td>
                       <td>{(pctValues[i] ?? 0).toFixed(1)}%</td>
                     </tr>
                   ))}

@@ -9,6 +9,7 @@ import {
 } from "../api.js";
 import { Field, EventSelect } from "../components/Field.js";
 import { PRESETS, presetRange } from "../lib/time.js";
+import { formatNumber } from "../lib/format.js";
 
 export function Experiments({ settings }: { settings: Settings }) {
   const [flags, setFlags] = useState<FlagRow[]>([]);
@@ -101,8 +102,8 @@ export function Experiments({ settings }: { settings: Settings }) {
                       <span style={{ color: "var(--good)", fontSize: 12, marginLeft: 8 }}>best</span>
                     )}
                   </td>
-                  <td style={{ fontVariantNumeric: "tabular-nums" }}>{d.exposed.toLocaleString()}</td>
-                  <td style={{ fontVariantNumeric: "tabular-nums" }}>{d.converted.toLocaleString()}</td>
+                  <td style={{ fontVariantNumeric: "tabular-nums" }}>{formatNumber(d.exposed)}</td>
+                  <td style={{ fontVariantNumeric: "tabular-nums" }}>{formatNumber(d.converted)}</td>
                   <td>
                     <div className="row" style={{ gap: 10 }}>
                       <div

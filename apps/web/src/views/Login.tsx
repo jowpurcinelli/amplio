@@ -48,12 +48,13 @@ export function Login({
   return (
     <div className="auth-screen">
       <div className="card auth-card">
-        <div className="brand" style={{ marginBottom: 4 }}>
+        <div className="brand" style={{ marginBottom: 2, paddingBottom: 6 }}>
           <span className="brand-dot" />
           Amplio
         </div>
-        <p className="page-sub" style={{ margin: "0 0 8px" }}>
-          {mode === "signup" ? "Create your account. It sets up a project for you." : "Sign in to your workspace."}
+        <p className="auth-tagline">Open-source product analytics you fully own.</p>
+        <p className="page-sub" style={{ margin: "0 0 10px", fontWeight: 600, color: "var(--text-primary)" }}>
+          {mode === "signup" ? "Create your account" : "Sign in to your workspace"}
         </p>
 
         <form

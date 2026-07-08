@@ -43,21 +43,46 @@ type View =
   | "keys"
   | "settings";
 
-const NAV: { key: View; label: string; glyph: string }[] = [
-  { key: "events", label: "Events", glyph: "📋" },
-  { key: "live", label: "Live", glyph: "🟢" },
-  { key: "dashboards", label: "Dashboards", glyph: "📊" },
-  { key: "segmentation", label: "Segmentation", glyph: "📈" },
-  { key: "funnel", label: "Funnels", glyph: "🔻" },
-  { key: "retention", label: "Retention", glyph: "🔁" },
-  { key: "users", label: "Users", glyph: "👤" },
-  { key: "replays", label: "Replays", glyph: "🎬" },
-  { key: "cohorts", label: "Cohorts", glyph: "🎯" },
-  { key: "flags", label: "Flags", glyph: "🚩" },
-  { key: "experiments", label: "Experiments", glyph: "🧪" },
-  { key: "library", label: "Library", glyph: "📁" },
-  { key: "keys", label: "API keys", glyph: "🔑" },
-  { key: "settings", label: "Settings", glyph: "⚙️" },
+const NAV_SECTIONS: { section: string; items: { key: View; label: string; glyph: string }[] }[] = [
+  {
+    section: "Overview",
+    items: [
+      { key: "events", label: "Events", glyph: "📋" },
+      { key: "live", label: "Live", glyph: "🟢" },
+    ],
+  },
+  {
+    section: "Analyze",
+    items: [
+      { key: "segmentation", label: "Segmentation", glyph: "📈" },
+      { key: "funnel", label: "Funnels", glyph: "🔻" },
+      { key: "retention", label: "Retention", glyph: "🔁" },
+      { key: "users", label: "Users", glyph: "👤" },
+      { key: "cohorts", label: "Cohorts", glyph: "🎯" },
+      { key: "replays", label: "Replays", glyph: "🎬" },
+    ],
+  },
+  {
+    section: "Experiment",
+    items: [
+      { key: "flags", label: "Flags", glyph: "🚩" },
+      { key: "experiments", label: "Experiments", glyph: "🧪" },
+    ],
+  },
+  {
+    section: "Saved",
+    items: [
+      { key: "dashboards", label: "Dashboards", glyph: "📊" },
+      { key: "library", label: "Library", glyph: "📁" },
+    ],
+  },
+  {
+    section: "Workspace",
+    items: [
+      { key: "keys", label: "API keys", glyph: "🔑" },
+      { key: "settings", label: "Settings", glyph: "⚙️" },
+    ],
+  },
 ];
 
 const TITLES: Record<View, { title: string; sub: string }> = {
@@ -240,32 +265,38 @@ export default function App() {
             </select>
           </div>
         )}
-        {NAV.map((n) => (
-          <button
-            key={n.key}
-            className={`nav-item${view === n.key ? " active" : ""}`}
-            onClick={() => navigate(n.key)}
-          >
-            <span aria-hidden>{n.glyph}</span>
-            {n.label}
-          </button>
+        {NAV_SECTIONS.map((sec) => (
+          <div key={sec.section}>
+            <div className="nav-section">{sec.section}</div>
+            {sec.items.map((n) => (
+              <button
+                key={n.key}
+                className={`nav-item${view === n.key ? " active" : ""}`}
+                onClick={() => navigate(n.key)}
+              >
+                <span className="nav-glyph" aria-hidden>{n.glyph}</span>
+                {n.label}
+              </button>
+            ))}
+          </div>
         ))}
         <div className="nav-spacer" />
         <button className="nav-item" onClick={cycleTheme}>
-          <span aria-hidden>🎨</span>
+          <span className="nav-glyph" aria-hidden>🎨</span>
           Theme: {theme}
         </button>
         {user ? (
           <button className="nav-item" onClick={logout} title={user.email}>
-            <span aria-hidden>🚪</span>
+            <span className="nav-glyph" aria-hidden>🚪</span>
             Log out
           </button>
         ) : (
           <button className="nav-item" onClick={logout}>
-            <span aria-hidden>🔐</span>
+            <span className="nav-glyph" aria-hidden>🔐</span>
             Sign in
           </button>
         )}
+        {user && <div className="sidebar-footer">Signed in as {user.email}</div>}
       </aside>
 
       <main className="main">

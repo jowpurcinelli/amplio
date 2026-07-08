@@ -3,6 +3,7 @@ import type { Settings } from "../config.js";
 import { queryUser, type UserActivityRow, type UserSummary } from "../api.js";
 import { Field } from "../components/Field.js";
 import { downloadCsv } from "../lib/csv.js";
+import { formatNumber } from "../lib/format.js";
 
 function fmtTime(raw: string): string {
   const d = new Date(raw.replace(" ", "T") + "Z");
@@ -77,7 +78,7 @@ export function Users({ settings }: { settings: Settings }) {
           <>
             <div className="stat-row">
               <div className="stat">
-                <div className="stat-val">{Number(summary.total_events).toLocaleString()}</div>
+                <div className="stat-val">{formatNumber(Number(summary.total_events))}</div>
                 <div className="stat-label">total events</div>
               </div>
               <div className="stat">

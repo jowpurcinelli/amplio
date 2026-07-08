@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { Settings } from "../config.js";
 import { queryLive, queryStats, type LiveEvent } from "../api.js";
+import { formatNumber } from "../lib/format.js";
 
 const MAX_ROWS = 200;
 const POLL_MS = 2000;
@@ -72,11 +73,11 @@ export function Live({ settings }: { settings: Settings }) {
         <div className="row" style={{ justifyContent: "space-between" }}>
           <div className="stat-row" style={{ marginBottom: 0 }}>
             <div className="stat">
-              <div className="stat-val">{stats ? stats.total.toLocaleString() : "…"}</div>
+              <div className="stat-val">{stats ? formatNumber(stats.total) : "…"}</div>
               <div className="stat-label">events tracked</div>
             </div>
             <div className="stat">
-              <div className="stat-val">{stats ? stats.lastHour.toLocaleString() : "…"}</div>
+              <div className="stat-val">{stats ? formatNumber(stats.lastHour) : "…"}</div>
               <div className="stat-label">in the last hour</div>
             </div>
           </div>

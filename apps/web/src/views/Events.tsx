@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import type { Settings } from "../config.js";
 import { fetchEventNames, type EventName } from "../api.js";
+import { formatNumber } from "../lib/format.js";
+import { RowsSkeleton } from "../components/Skeleton.js";
 
 export function Events({
   settings,
@@ -36,16 +38,21 @@ export function Events({
           </div>
         </div>
       )}
+      {!events && !error && <RowsSkeleton rows={8} />}
       {events && events.length === 0 && (
-        <div className="empty">
-          No events yet. Send some with an SDK, or run <code>node scripts/seed-demo.mjs</code>.
+        <div className="empty-state">
+          <div className="empty-glyph">📭</div>
+          <div className="empty-title">No events yet</div>
+          <div className="empty-hint">
+            Send some with an SDK, or run <code>node scripts/seed-demo.mjs</code> to load a demo dataset.
+          </div>
         </div>
       )}
       {events && events.length > 0 && (
         <>
           <div className="stat-row">
             <div className="stat">
-              <div className="stat-val">{total.toLocaleString()}</div>
+              <div className="stat-val">{formatNumber(total)}</div>
               <div className="stat-label">events tracked</div>
             </div>
             <div className="stat">
@@ -77,7 +84,7 @@ export function Events({
                         }}
                       />
                       <span style={{ fontVariantNumeric: "tabular-nums", color: "var(--text-secondary)" }}>
-                        {Number(e.volume).toLocaleString()}
+                        {formatNumber(Number(e.volume))}
                       </span>
                     </div>
                   </td>

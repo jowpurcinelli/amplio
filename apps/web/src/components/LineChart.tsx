@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useWidth } from "./useWidth.js";
+import { formatCompact } from "../lib/format.js";
 
 export interface Series {
   name: string;
@@ -27,7 +28,7 @@ function niceMax(v: number): number {
   return step * pow;
 }
 
-export function LineChart({ labels, series, height = 300, format = (n) => String(n), xLabel }: Props) {
+export function LineChart({ labels, series, height = 300, format = formatCompact, xLabel }: Props) {
   const [ref, width] = useWidth<HTMLDivElement>();
   const [hover, setHover] = useState<number | null>(null);
 
