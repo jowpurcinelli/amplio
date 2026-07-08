@@ -7,6 +7,7 @@ import { buildUserActivity, buildUserSummary } from "./user.js";
 import { buildLiveEvents, buildStats } from "./live.js";
 import { buildExperiment } from "./experiment.js";
 import { buildReplayList, buildReplayEvents } from "./replay.js";
+import { buildProjectUsage } from "./usage.js";
 
 const range = { from: 1_700_000_000_000, to: 1_700_600_000_000 };
 
@@ -240,6 +241,19 @@ describe("replay builders", () => {
     expect(q.sql).toContain("ORDER BY seq");
     expect(Object.values(q.params)).toContain("rep_1");
     expect(q.sql).not.toContain("rep_1");
+  });
+});
+
+describe("buildProjectUsage", () => {
+  it("counts events per project since a cutoff, binding ids and time as params", () => {
+    const q = buildProjectUsage(["proj_a", "proj_b"], 1_700_000_000_000);
+    expect(q.sql).toContain("count() AS events");
+    expect(q.sql).toContain("GROUP BY project_id");
+    expect(q.sql).toContain("project_id IN");
+    expect(q.sql).toContain("fromUnixTimestamp64Milli");
+    expect(Object.values(q.params)).toContainEqual(["proj_a", "proj_b"]);
+    expect(Object.values(q.params)).toContain(1_700_000_000_000);
+    expect(q.sql).not.toContain("proj_a");
   });
 });
 

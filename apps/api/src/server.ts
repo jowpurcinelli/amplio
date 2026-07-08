@@ -14,12 +14,13 @@ import {
   buildExperiment,
   buildReplayList,
   buildReplayEvents,
+  buildProjectUsage,
   type CompiledQuery,
 } from "@amplio/query";
-import { makeStore, hashPassword, verifyPassword, signToken, verifyToken, type Store } from "@amplio/db";
+import { makeStore, hashPassword, verifyPassword, signToken, verifyToken, PLANS, DEFAULT_PLAN, isPlanId, planLimit, type Store } from "@amplio/db";
 import type { ApiConfig } from "./config.js";
 import { randomBytes } from "node:crypto";
-import { funnelBody, retentionBody, segmentationBody, userBody, experimentBody, chartBody, dashboardBody, cohortBody, keyBody, flagBody, signupBody, loginBody, inviteBody, memberRoleBody, acceptInviteBody, projectBody } from "./schemas.js";
+import { funnelBody, retentionBody, segmentationBody, userBody, experimentBody, chartBody, dashboardBody, cohortBody, keyBody, flagBody, signupBody, loginBody, inviteBody, memberRoleBody, acceptInviteBody, projectBody, planBody } from "./schemas.js";
 
 export interface ApiDeps {
   cfg: ApiConfig;
@@ -391,6 +392,50 @@ export function buildApi(deps: ApiDeps): FastifyInstance {
     const ok = await s.deleteProject(orgId, projectId);
     if (!ok) return reply.status(404).send({ error: "project not found" });
     reply.send({ ok: true });
+  });
+
+  // --- usage metering + plan (billing scaffolding) ---
+  // This month's event count for the org, per project, against its plan limit.
+  app.get("/orgs/:orgId/usage", async (req, reply) => {
+    const s = requireStore(reply);
+    if (!s) return;
+    const { orgId } = req.params as { orgId: string };
+    if (!(await requireOrgRole(s, req, reply, orgId, "member"))) return;
+    const planRaw = (await s.getOrgPlan(orgId)) ?? DEFAULT_PLAN;
+    const plan = isPlanId(planRaw) ? planRaw : DEFAULT_PLAN;
+    const projects = await s.listOrgProjects(orgId);
+    const now = new Date();
+    const periodStart = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1);
+    let byProject: { id: string; name: string; events: number }[] = [];
+    if (projects.length > 0) {
+      const compiled = buildProjectUsage(
+        projects.map((p) => p.id),
+        periodStart,
+      );
+      const rs = await clickhouse.query({
+        query: compiled.sql,
+        query_params: compiled.params,
+        format: "JSONEachRow",
+      });
+      const rows = (await rs.json()) as { project_id: string; events: string | number }[];
+      const counts = new Map(rows.map((r) => [r.project_id, Number(r.events)]));
+      byProject = projects.map((p) => ({ id: p.id, name: p.name, events: counts.get(p.id) ?? 0 }));
+    }
+    const events = byProject.reduce((n, p) => n + p.events, 0);
+    reply.send({ plan, limit: planLimit(plan), events, projects: byProject, periodStart, plans: PLANS });
+  });
+
+  // Record a plan change. Real payment is not wired here (self-host is free and
+  // unrestricted); this just persists the choice so a hosted layer can bill on it.
+  app.post("/orgs/:orgId/plan", async (req, reply) => {
+    const s = requireStore(reply);
+    if (!s) return;
+    const { orgId } = req.params as { orgId: string };
+    if (!(await requireOrgRole(s, req, reply, orgId, "owner"))) return;
+    const parsed = planBody.safeParse(req.body);
+    if (!parsed.success) return reply.status(400).send({ error: parsed.error.issues[0]?.message });
+    await s.setOrgPlan(orgId, parsed.data.plan);
+    reply.send({ ok: true, plan: parsed.data.plan });
   });
 
   // --- metadata pickers ---

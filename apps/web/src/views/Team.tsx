@@ -12,11 +12,16 @@ import {
   createProject,
   renameProject,
   deleteProject,
+  getUsage,
+  setPlan,
   type Member,
   type Invite,
   type Role,
   type UserProject,
+  type Usage,
+  type PlanId,
 } from "../auth.js";
+import { formatNumber, formatCompact, formatPercent } from "../lib/format.js";
 
 const ROLES: Role[] = ["owner", "admin", "member"];
 const RANK: Record<Role, number> = { owner: 3, admin: 2, member: 1 };
@@ -36,8 +41,10 @@ export function Team({
 }) {
   const toast = useToast();
   const canManage = RANK[org.role] >= RANK.admin;
+  const isOwner = org.role === "owner";
   const [members, setMembers] = useState<Member[] | null>(null);
   const [invites, setInvites] = useState<Invite[]>([]);
+  const [usage, setUsage] = useState<Usage | null>(null);
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteRole, setInviteRole] = useState<Role>("member");
   const [newProject, setNewProject] = useState("");
@@ -46,7 +53,18 @@ export function Team({
   const load = async () => {
     try {
       setMembers(await listMembers(apiUrl, token, org.id));
+      setUsage(await getUsage(apiUrl, token, org.id));
       if (canManage) setInvites(await listInvites(apiUrl, token, org.id));
+    } catch (e) {
+      toast.err(e instanceof Error ? e.message : String(e));
+    }
+  };
+
+  const changePlan = async (plan: PlanId) => {
+    try {
+      await setPlan(apiUrl, token, org.id, plan);
+      toast.ok(`Switched to the ${usage?.plans[plan].name ?? plan} plan`);
+      setUsage(await getUsage(apiUrl, token, org.id));
     } catch (e) {
       toast.err(e instanceof Error ? e.message : String(e));
     }
@@ -152,6 +170,85 @@ export function Team({
           </div>
         </div>
       </div>
+
+      {usage && (
+        <div className="card">
+          <div className="row" style={{ justifyContent: "space-between", alignItems: "flex-start" }}>
+            <div>
+              <h3 style={{ margin: "0 0 2px" }}>Plan & usage</h3>
+              <div style={{ color: "var(--muted)", fontSize: 13 }}>
+                {usage.plans[usage.plan].name} plan · this month
+              </div>
+            </div>
+            <div style={{ textAlign: "right" }}>
+              <div style={{ fontSize: 22, fontWeight: 700 }}>{formatNumber(usage.events)}</div>
+              <div style={{ color: "var(--muted)", fontSize: 12 }}>
+                {usage.limit === null ? "unlimited" : `of ${formatCompact(usage.limit)} events`}
+              </div>
+            </div>
+          </div>
+          {usage.limit !== null && (
+            <div style={{ marginTop: 12 }}>
+              <div
+                style={{
+                  height: 10,
+                  borderRadius: 6,
+                  background: "color-mix(in srgb, var(--baseline) 30%, transparent)",
+                  overflow: "hidden",
+                }}
+              >
+                <div
+                  style={{
+                    width: `${Math.min(100, (usage.events / usage.limit) * 100)}%`,
+                    height: "100%",
+                    borderRadius: 6,
+                    background: usage.events > usage.limit ? "var(--series-6)" : "var(--seq-450)",
+                  }}
+                />
+              </div>
+              <div style={{ color: "var(--muted)", fontSize: 12, marginTop: 5 }}>
+                {formatPercent(Math.min(1, usage.events / usage.limit), 0)} of your monthly allowance
+                {usage.events > usage.limit && (
+                  <span style={{ color: "var(--series-6)" }}> · over the limit, consider upgrading</span>
+                )}
+              </div>
+            </div>
+          )}
+          {usage.projects.length > 1 && (
+            <div className="legend" style={{ marginTop: 12, gap: 18 }}>
+              {usage.projects.map((p) => (
+                <div key={p.id} className="legend-item">
+                  <span style={{ fontWeight: 600, color: "var(--text-primary)" }}>{formatNumber(p.events)}</span>
+                  {p.name}
+                </div>
+              ))}
+            </div>
+          )}
+          <div className="row" style={{ marginTop: 14, gap: 8 }}>
+            {(Object.keys(usage.plans) as PlanId[]).map((id) => {
+              const plan = usage.plans[id];
+              const current = id === usage.plan;
+              return (
+                <button
+                  key={id}
+                  className={`btn ${current ? "" : "secondary"}`}
+                  disabled={!isOwner || current}
+                  onClick={() => changePlan(id)}
+                  title={!isOwner ? "Only an owner can change the plan" : undefined}
+                >
+                  {plan.name}
+                  {plan.priceUsd > 0 ? ` · $${plan.priceUsd}/mo` : " · free"}
+                  {current ? " (current)" : ""}
+                </button>
+              );
+            })}
+          </div>
+          <div style={{ color: "var(--muted)", fontSize: 12, marginTop: 8 }}>
+            Self-hosting is free and unrestricted. Plans matter only on a hosted deployment; switching here records
+            the choice, no payment is taken.
+          </div>
+        </div>
+      )}
 
       <div className="card">
         <h3 style={{ marginTop: 0 }}>Members</h3>

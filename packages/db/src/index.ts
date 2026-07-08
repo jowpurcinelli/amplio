@@ -5,6 +5,7 @@ import type { Store } from "./types.js";
 export * from "./types.js";
 export { generateKey } from "./keys.js";
 export { evaluateFlag, type FlagEvaluation } from "./flags.js";
+export { PLANS, DEFAULT_PLAN, isPlanId, planLimit, type PlanId, type Plan } from "./plans.js";
 export { hashPassword, verifyPassword, signToken, verifyToken, type TokenPayload } from "./auth.js";
 export { PgStore } from "./pg.js";
 export { SqliteStore } from "./sqlite.js";

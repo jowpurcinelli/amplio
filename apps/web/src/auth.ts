@@ -130,6 +130,26 @@ export const deleteInvite = (apiUrl: string, token: string, orgId: string, id: s
 export const acceptInvite = (apiUrl: string, token: string, inviteToken: string) =>
   authFetch<{ ok: true; orgId: string; role: Role }>(apiUrl, "/invites/accept", jsonAuth(token, "POST", { token: inviteToken }));
 
+export type PlanId = "free" | "pro" | "scale";
+export interface Plan {
+  id: PlanId;
+  name: string;
+  monthlyEvents: number | null;
+  priceUsd: number;
+}
+export interface Usage {
+  plan: PlanId;
+  limit: number | null;
+  events: number;
+  projects: { id: string; name: string; events: number }[];
+  periodStart: number;
+  plans: Record<PlanId, Plan>;
+}
+export const getUsage = (apiUrl: string, token: string, orgId: string) =>
+  authFetch<Usage>(apiUrl, `/orgs/${orgId}/usage`, authHeader(token));
+export const setPlan = (apiUrl: string, token: string, orgId: string, plan: PlanId) =>
+  authFetch<{ ok: true; plan: PlanId }>(apiUrl, `/orgs/${orgId}/plan`, jsonAuth(token, "POST", { plan }));
+
 export const createProject = (apiUrl: string, token: string, orgId: string, name: string) =>
   authFetch<{ project: { id: string; name: string } }>(apiUrl, `/orgs/${orgId}/projects`, jsonAuth(token, "POST", { name }));
 export const renameProject = (apiUrl: string, token: string, orgId: string, projectId: string, name: string) =>

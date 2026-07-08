@@ -160,6 +160,11 @@ export interface Store {
   createOrg(name: string): Promise<{ id: string }>;
   /** Delete an org and everything under it (projects, keys, memberships). Used to roll back a failed signup. */
   deleteOrg(id: string): Promise<void>;
+  /** The org's billing plan id ('free' by default), or null if the org is gone. */
+  getOrgPlan(id: string): Promise<string | null>;
+  setOrgPlan(id: string, plan: string): Promise<boolean>;
+  /** Projects in an org (id + name only), for usage metering and admin. */
+  listOrgProjects(orgId: string): Promise<{ id: string; name: string }[]>;
   createProject(orgId: string, name: string): Promise<{ id: string }>;
   renameProject(orgId: string, projectId: string, name: string): Promise<boolean>;
   deleteProject(orgId: string, projectId: string): Promise<boolean>;

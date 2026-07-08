@@ -214,6 +214,24 @@ export class PgStore implements Store {
     await this.pool.query(`DELETE FROM organizations WHERE id = $1`, [id]);
   }
 
+  async getOrgPlan(id: string): Promise<string | null> {
+    const r = await this.pool.query(`SELECT plan FROM organizations WHERE id = $1`, [id]);
+    return r.rows[0]?.plan ?? null;
+  }
+
+  async setOrgPlan(id: string, plan: string): Promise<boolean> {
+    const r = await this.pool.query(`UPDATE organizations SET plan = $2 WHERE id = $1`, [id, plan]);
+    return (r.rowCount ?? 0) > 0;
+  }
+
+  async listOrgProjects(orgId: string): Promise<{ id: string; name: string }[]> {
+    const r = await this.pool.query(
+      `SELECT id, name FROM projects WHERE org_id = $1 ORDER BY created_at`,
+      [orgId],
+    );
+    return r.rows.map((row: any) => ({ id: row.id, name: row.name }));
+  }
+
   async createProject(orgId: string, name: string): Promise<{ id: string }> {
     const r = await this.pool.query(
       `INSERT INTO projects (org_id, name) VALUES ($1, $2) RETURNING id`,

@@ -49,7 +49,8 @@ export class SqliteStore implements Store {
   private migrate(): void {
     this.db.exec(`
       CREATE TABLE IF NOT EXISTS organizations (
-        id TEXT PRIMARY KEY, name TEXT NOT NULL, created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        id TEXT PRIMARY KEY, name TEXT NOT NULL, plan TEXT NOT NULL DEFAULT 'free',
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
       );
       CREATE TABLE IF NOT EXISTS projects (
         id TEXT PRIMARY KEY, org_id TEXT NOT NULL, name TEXT NOT NULL, created_at TEXT NOT NULL DEFAULT (datetime('now'))
@@ -103,6 +104,13 @@ export class SqliteStore implements Store {
       );
       CREATE INDEX IF NOT EXISTS invites_org_idx ON invites(org_id);
     `);
+    // Add the plan column for orgs created before billing (SQLite has no
+    // ADD COLUMN IF NOT EXISTS, so ignore the "duplicate column" error).
+    try {
+      this.db.exec(`ALTER TABLE organizations ADD COLUMN plan TEXT NOT NULL DEFAULT 'free'`);
+    } catch {
+      /* column already exists */
+    }
     // Backfill a membership for any user that predates this table.
     this.db.exec(
       `INSERT OR IGNORE INTO memberships (org_id, user_id, role)
@@ -256,6 +264,22 @@ export class SqliteStore implements Store {
     const id = randomUUID();
     this.db.prepare(`INSERT INTO organizations (id, name) VALUES (?, ?)`).run(id, name);
     return { id };
+  }
+
+  async getOrgPlan(id: string): Promise<string | null> {
+    const row = this.db.prepare(`SELECT plan FROM organizations WHERE id = ?`).get(id) as { plan: string } | undefined;
+    return row?.plan ?? null;
+  }
+
+  async setOrgPlan(id: string, plan: string): Promise<boolean> {
+    const r = this.db.prepare(`UPDATE organizations SET plan = ? WHERE id = ?`).run(plan, id);
+    return r.changes > 0;
+  }
+
+  async listOrgProjects(orgId: string): Promise<{ id: string; name: string }[]> {
+    return this.db
+      .prepare(`SELECT id, name FROM projects WHERE org_id = ? ORDER BY created_at`)
+      .all(orgId) as Array<{ id: string; name: string }>;
   }
 
   async deleteOrg(id: string): Promise<void> {

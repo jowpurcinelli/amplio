@@ -117,3 +117,7 @@ export const acceptInviteBody = z.object({
 export const projectBody = z.object({
   name: z.string().min(1).max(200),
 });
+
+export const planBody = z.object({
+  plan: z.enum(["free", "pro", "scale"]),
+});
