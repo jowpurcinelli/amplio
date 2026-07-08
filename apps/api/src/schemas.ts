@@ -98,3 +98,22 @@ export const flagBody = z.object({
     .max(20)
     .default([]),
 });
+
+export const roleEnum = z.enum(["owner", "admin", "member"]);
+
+export const inviteBody = z.object({
+  email: z.string().email().max(320),
+  role: roleEnum,
+});
+
+export const memberRoleBody = z.object({
+  role: roleEnum,
+});
+
+export const acceptInviteBody = z.object({
+  token: z.string().min(1).max(200),
+});
+
+export const projectBody = z.object({
+  name: z.string().min(1).max(200),
+});

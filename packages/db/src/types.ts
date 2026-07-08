@@ -56,6 +56,36 @@ export interface UserProject {
   name: string;
   readKey: string | null;
   writeKey: string | null;
+  /** The org this project belongs to, and the user's role in it. */
+  orgId: string;
+  orgName: string;
+  role: Role;
+}
+
+/** Access levels within an org, from most to least privileged. */
+export type Role = "owner" | "admin" | "member";
+
+export interface OrgMembership {
+  orgId: string;
+  orgName: string;
+  role: Role;
+}
+/** A member of an org, as shown in the members list. */
+export interface Member {
+  userId: string;
+  email: string;
+  name: string | null;
+  role: Role;
+  createdAt: string;
+}
+export interface Invite {
+  id: string;
+  orgId: string;
+  email: string;
+  role: Role;
+  token: string;
+  createdAt: string;
+  acceptedAt: string | null;
 }
 
 export interface FlagVariant {
@@ -128,11 +158,32 @@ export interface Store {
   getUser(id: string): Promise<User | null>;
   getCredentials(email: string): Promise<{ user: User; passwordHash: string } | null>;
   createOrg(name: string): Promise<{ id: string }>;
-  /** Delete an org and everything under it (projects, keys, users). Used to roll back a failed signup. */
+  /** Delete an org and everything under it (projects, keys, memberships). Used to roll back a failed signup. */
   deleteOrg(id: string): Promise<void>;
   createProject(orgId: string, name: string): Promise<{ id: string }>;
-  /** Projects the user can access (via their org) with each project's keys. */
+  renameProject(orgId: string, projectId: string, name: string): Promise<boolean>;
+  deleteProject(orgId: string, projectId: string): Promise<boolean>;
+  /** Projects the user can access (across all their orgs) with each project's keys. */
   getUserProjects(userId: string): Promise<UserProject[]>;
+
+  // --- org membership + roles ---
+  addMember(orgId: string, userId: string, role: Role): Promise<void>;
+  removeMember(orgId: string, userId: string): Promise<boolean>;
+  setMemberRole(orgId: string, userId: string, role: Role): Promise<boolean>;
+  listMembers(orgId: string): Promise<Member[]>;
+  /** The user's role in the org, or null if they are not a member. */
+  getMemberRole(orgId: string, userId: string): Promise<Role | null>;
+  /** Orgs the user belongs to, with their role in each. */
+  listUserOrgs(userId: string): Promise<OrgMembership[]>;
+  /** Count members with a given role (used to protect the last owner). */
+  countMembersWithRole(orgId: string, role: Role): Promise<number>;
+
+  // --- invites ---
+  createInvite(orgId: string, email: string, role: Role, token: string): Promise<Invite>;
+  listInvites(orgId: string): Promise<Invite[]>;
+  getInviteByToken(token: string): Promise<Invite | null>;
+  markInviteAccepted(id: string): Promise<void>;
+  deleteInvite(orgId: string, id: string): Promise<boolean>;
 
   listFlags(projectId: string): Promise<Flag[]>;
   getFlag(projectId: string, key: string): Promise<Flag | null>;

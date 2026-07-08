@@ -18,7 +18,8 @@ import {
 } from "@amplio/query";
 import { makeStore, hashPassword, verifyPassword, signToken, verifyToken, type Store } from "@amplio/db";
 import type { ApiConfig } from "./config.js";
-import { funnelBody, retentionBody, segmentationBody, userBody, experimentBody, chartBody, dashboardBody, cohortBody, keyBody, flagBody, signupBody, loginBody } from "./schemas.js";
+import { randomBytes } from "node:crypto";
+import { funnelBody, retentionBody, segmentationBody, userBody, experimentBody, chartBody, dashboardBody, cohortBody, keyBody, flagBody, signupBody, loginBody, inviteBody, memberRoleBody, acceptInviteBody, projectBody } from "./schemas.js";
 
 export interface ApiDeps {
   cfg: ApiConfig;
@@ -165,6 +166,7 @@ export function buildApi(deps: ApiDeps): FastifyInstance {
         name: parsed.data.name ?? null,
         passwordHash: hashPassword(parsed.data.password),
       });
+      await s.addMember(org.id, user.id, "owner");
       const token = signToken({ sub: user.id, email: user.email }, cfg.authSecret);
       reply.send({ token, user });
     } catch (err) {
@@ -214,6 +216,181 @@ export function buildApi(deps: ApiDeps): FastifyInstance {
     if (!payload) return reply.status(401).send({ error: "not authenticated" });
     const projects = await s.getUserProjects(payload.sub);
     reply.send({ projects });
+  });
+
+  // --- org, members, invites, project management (session-token auth) ---
+  // Resolve the session user id from the bearer token, or 401.
+  const sessionSub = (req: FastifyRequest, reply: FastifyReply): string | null => {
+    const payload = verifyToken(extractKey(req), cfg.authSecret);
+    if (!payload) {
+      reply.status(401).send({ error: "not authenticated" });
+      return null;
+    }
+    return payload.sub;
+  };
+  const ROLE_RANK: Record<string, number> = { member: 1, admin: 2, owner: 3 };
+  // Require the caller to be a member of orgId with at least `min` privilege.
+  const requireOrgRole = async (
+    s: Store,
+    req: FastifyRequest,
+    reply: FastifyReply,
+    orgId: string,
+    min: "owner" | "admin" | "member",
+  ): Promise<{ sub: string; role: string } | null> => {
+    const sub = sessionSub(req, reply);
+    if (!sub) return null;
+    const role = await s.getMemberRole(orgId, sub);
+    if (!role) {
+      // Do not reveal whether the org exists to a non-member.
+      reply.status(404).send({ error: "not found" });
+      return null;
+    }
+    if (ROLE_RANK[role]! < ROLE_RANK[min]!) {
+      reply.status(403).send({ error: "insufficient permissions" });
+      return null;
+    }
+    return { sub, role };
+  };
+
+  app.get("/orgs", async (req, reply) => {
+    const s = requireStore(reply);
+    if (!s) return;
+    const sub = sessionSub(req, reply);
+    if (!sub) return;
+    reply.send({ orgs: await s.listUserOrgs(sub) });
+  });
+
+  app.get("/orgs/:orgId/members", async (req, reply) => {
+    const s = requireStore(reply);
+    if (!s) return;
+    const { orgId } = req.params as { orgId: string };
+    if (!(await requireOrgRole(s, req, reply, orgId, "member"))) return;
+    reply.send({ members: await s.listMembers(orgId) });
+  });
+
+  app.patch("/orgs/:orgId/members/:userId", async (req, reply) => {
+    const s = requireStore(reply);
+    if (!s) return;
+    const { orgId, userId } = req.params as { orgId: string; userId: string };
+    const ctx = await requireOrgRole(s, req, reply, orgId, "admin");
+    if (!ctx) return;
+    const parsed = memberRoleBody.safeParse(req.body);
+    if (!parsed.success) return reply.status(400).send({ error: parsed.error.issues[0]?.message });
+    // Only an owner may grant or change ownership.
+    if ((parsed.data.role === "owner" || (await s.getMemberRole(orgId, userId)) === "owner") && ctx.role !== "owner") {
+      return reply.status(403).send({ error: "only an owner can manage owners" });
+    }
+    // Never leave an org with no owner.
+    if ((await s.getMemberRole(orgId, userId)) === "owner" && parsed.data.role !== "owner") {
+      if ((await s.countMembersWithRole(orgId, "owner")) <= 1) {
+        return reply.status(409).send({ error: "an org must keep at least one owner" });
+      }
+    }
+    const ok = await s.setMemberRole(orgId, userId, parsed.data.role);
+    if (!ok) return reply.status(404).send({ error: "member not found" });
+    reply.send({ ok: true });
+  });
+
+  app.delete("/orgs/:orgId/members/:userId", async (req, reply) => {
+    const s = requireStore(reply);
+    if (!s) return;
+    const { orgId, userId } = req.params as { orgId: string; userId: string };
+    const ctx = await requireOrgRole(s, req, reply, orgId, "admin");
+    if (!ctx) return;
+    const target = await s.getMemberRole(orgId, userId);
+    if (target === "owner") {
+      if (ctx.role !== "owner") return reply.status(403).send({ error: "only an owner can remove an owner" });
+      if ((await s.countMembersWithRole(orgId, "owner")) <= 1) {
+        return reply.status(409).send({ error: "an org must keep at least one owner" });
+      }
+    }
+    const ok = await s.removeMember(orgId, userId);
+    if (!ok) return reply.status(404).send({ error: "member not found" });
+    reply.send({ ok: true });
+  });
+
+  app.get("/orgs/:orgId/invites", async (req, reply) => {
+    const s = requireStore(reply);
+    if (!s) return;
+    const { orgId } = req.params as { orgId: string };
+    if (!(await requireOrgRole(s, req, reply, orgId, "admin"))) return;
+    reply.send({ invites: await s.listInvites(orgId) });
+  });
+
+  app.post("/orgs/:orgId/invites", async (req, reply) => {
+    const s = requireStore(reply);
+    if (!s) return;
+    const { orgId } = req.params as { orgId: string };
+    const ctx = await requireOrgRole(s, req, reply, orgId, "admin");
+    if (!ctx) return;
+    const parsed = inviteBody.safeParse(req.body);
+    if (!parsed.success) return reply.status(400).send({ error: parsed.error.issues[0]?.message });
+    if (parsed.data.role === "owner" && ctx.role !== "owner") {
+      return reply.status(403).send({ error: "only an owner can invite an owner" });
+    }
+    const token = randomBytes(24).toString("base64url");
+    const invite = await s.createInvite(orgId, parsed.data.email, parsed.data.role, token);
+    reply.send({ invite });
+  });
+
+  app.delete("/orgs/:orgId/invites/:inviteId", async (req, reply) => {
+    const s = requireStore(reply);
+    if (!s) return;
+    const { orgId, inviteId } = req.params as { orgId: string; inviteId: string };
+    if (!(await requireOrgRole(s, req, reply, orgId, "admin"))) return;
+    const ok = await s.deleteInvite(orgId, inviteId);
+    if (!ok) return reply.status(404).send({ error: "invite not found" });
+    reply.send({ ok: true });
+  });
+
+  // Accept an invite as the logged-in user: join the org with the invited role.
+  app.post("/invites/accept", async (req, reply) => {
+    const s = requireStore(reply);
+    if (!s) return;
+    const sub = sessionSub(req, reply);
+    if (!sub) return;
+    const parsed = acceptInviteBody.safeParse(req.body);
+    if (!parsed.success) return reply.status(400).send({ error: parsed.error.issues[0]?.message });
+    const invite = await s.getInviteByToken(parsed.data.token);
+    if (!invite || invite.acceptedAt) return reply.status(404).send({ error: "invite not found or already used" });
+    await s.addMember(invite.orgId, sub, invite.role);
+    await s.markInviteAccepted(invite.id);
+    reply.send({ ok: true, orgId: invite.orgId, role: invite.role });
+  });
+
+  app.post("/orgs/:orgId/projects", async (req, reply) => {
+    const s = requireStore(reply);
+    if (!s) return;
+    const { orgId } = req.params as { orgId: string };
+    if (!(await requireOrgRole(s, req, reply, orgId, "admin"))) return;
+    const parsed = projectBody.safeParse(req.body);
+    if (!parsed.success) return reply.status(400).send({ error: parsed.error.issues[0]?.message });
+    const project = await s.createProject(orgId, parsed.data.name);
+    const write = await s.createApiKey(project.id, "write", "Default write key");
+    const read = await s.createApiKey(project.id, "read", "Default read key");
+    reply.send({ project: { id: project.id, name: parsed.data.name, readKey: read.key, writeKey: write.key } });
+  });
+
+  app.patch("/orgs/:orgId/projects/:projectId", async (req, reply) => {
+    const s = requireStore(reply);
+    if (!s) return;
+    const { orgId, projectId } = req.params as { orgId: string; projectId: string };
+    if (!(await requireOrgRole(s, req, reply, orgId, "admin"))) return;
+    const parsed = projectBody.safeParse(req.body);
+    if (!parsed.success) return reply.status(400).send({ error: parsed.error.issues[0]?.message });
+    const ok = await s.renameProject(orgId, projectId, parsed.data.name);
+    if (!ok) return reply.status(404).send({ error: "project not found" });
+    reply.send({ ok: true });
+  });
+
+  app.delete("/orgs/:orgId/projects/:projectId", async (req, reply) => {
+    const s = requireStore(reply);
+    if (!s) return;
+    const { orgId, projectId } = req.params as { orgId: string; projectId: string };
+    if (!(await requireOrgRole(s, req, reply, orgId, "admin"))) return;
+    const ok = await s.deleteProject(orgId, projectId);
+    if (!ok) return reply.status(404).send({ error: "project not found" });
+    reply.send({ ok: true });
   });
 
   // --- metadata pickers ---

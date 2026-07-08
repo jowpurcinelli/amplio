@@ -26,6 +26,33 @@ CREATE TABLE IF NOT EXISTS projects (
   created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+-- Org membership: a user can belong to many orgs, each with a role.
+CREATE TABLE IF NOT EXISTS memberships (
+  org_id      UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  user_id     UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  role        TEXT NOT NULL CHECK (role IN ('owner', 'admin', 'member')),
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+  PRIMARY KEY (org_id, user_id)
+);
+CREATE INDEX IF NOT EXISTS memberships_user_idx ON memberships(user_id);
+
+-- Pending invitations to join an org.
+CREATE TABLE IF NOT EXISTS invites (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  org_id      UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  email       TEXT NOT NULL,
+  role        TEXT NOT NULL CHECK (role IN ('owner', 'admin', 'member')),
+  token       TEXT NOT NULL UNIQUE,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+  accepted_at TIMESTAMPTZ
+);
+CREATE INDEX IF NOT EXISTS invites_org_idx ON invites(org_id);
+
+-- Backfill a membership for any user that predates this table.
+INSERT INTO memberships (org_id, user_id, role)
+SELECT org_id, id, 'owner' FROM users WHERE org_id IS NOT NULL
+ON CONFLICT (org_id, user_id) DO NOTHING;
+
 CREATE TABLE IF NOT EXISTS api_keys (
   id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   project_id  UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,

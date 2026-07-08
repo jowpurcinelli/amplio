@@ -10,9 +10,13 @@ import type {
   DashboardInput,
   Flag,
   FlagInput,
+  Invite,
   KeyKind,
+  Member,
   NewUser,
+  OrgMembership,
   ResolvedKey,
+  Role,
   Store,
   User,
   UserProject,
@@ -84,7 +88,26 @@ export class SqliteStore implements Store {
         id TEXT PRIMARY KEY, org_id TEXT, email TEXT NOT NULL UNIQUE, name TEXT,
         password_hash TEXT NOT NULL, created_at TEXT NOT NULL DEFAULT (datetime('now'))
       );
+      CREATE TABLE IF NOT EXISTS memberships (
+        org_id TEXT NOT NULL, user_id TEXT NOT NULL,
+        role TEXT NOT NULL CHECK (role IN ('owner','admin','member')),
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        PRIMARY KEY (org_id, user_id)
+      );
+      CREATE INDEX IF NOT EXISTS memberships_user_idx ON memberships(user_id);
+      CREATE TABLE IF NOT EXISTS invites (
+        id TEXT PRIMARY KEY, org_id TEXT NOT NULL, email TEXT NOT NULL,
+        role TEXT NOT NULL CHECK (role IN ('owner','admin','member')),
+        token TEXT NOT NULL UNIQUE,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')), accepted_at TEXT
+      );
+      CREATE INDEX IF NOT EXISTS invites_org_idx ON invites(org_id);
     `);
+    // Backfill a membership for any user that predates this table.
+    this.db.exec(
+      `INSERT OR IGNORE INTO memberships (org_id, user_id, role)
+       SELECT org_id, id, 'owner' FROM users WHERE org_id IS NOT NULL`,
+    );
     this.db.prepare(`INSERT OR IGNORE INTO organizations (id, name) VALUES (?, 'Demo Org')`).run(ORG_ID);
     this.db.prepare(`INSERT OR IGNORE INTO projects (id, org_id, name) VALUES (?, ?, 'dev-project')`).run(PROJECT_ID, ORG_ID);
     const seedKey = this.db.prepare(
@@ -236,11 +259,13 @@ export class SqliteStore implements Store {
   }
 
   async deleteOrg(id: string): Promise<void> {
-    // SQLite has FKs off, so remove children explicitly (keys -> projects -> users -> org).
+    // SQLite has FKs off, so remove children explicitly.
     this.db
       .prepare(`DELETE FROM api_keys WHERE project_id IN (SELECT id FROM projects WHERE org_id = ?)`)
       .run(id);
     this.db.prepare(`DELETE FROM projects WHERE org_id = ?`).run(id);
+    this.db.prepare(`DELETE FROM memberships WHERE org_id = ?`).run(id);
+    this.db.prepare(`DELETE FROM invites WHERE org_id = ?`).run(id);
     this.db.prepare(`DELETE FROM users WHERE org_id = ?`).run(id);
     this.db.prepare(`DELETE FROM organizations WHERE id = ?`).run(id);
   }
@@ -254,23 +279,129 @@ export class SqliteStore implements Store {
   async getUserProjects(userId: string): Promise<UserProject[]> {
     const rows = this.db
       .prepare(
-        `SELECT p.id, p.name,
+        `SELECT p.id, p.name, o.id AS org_id, o.name AS org_name, m.role,
            (SELECT key FROM api_keys k WHERE k.project_id = p.id AND k.kind = 'read'
               AND k.revoked_at IS NULL ORDER BY created_at LIMIT 1) AS read_key,
            (SELECT key FROM api_keys k WHERE k.project_id = p.id AND k.kind = 'write'
               AND k.revoked_at IS NULL ORDER BY created_at LIMIT 1) AS write_key
          FROM projects p
-         JOIN users u ON u.org_id = p.org_id
-         WHERE u.id = ?
-         ORDER BY p.created_at`,
+         JOIN memberships m ON m.org_id = p.org_id
+         JOIN organizations o ON o.id = p.org_id
+         WHERE m.user_id = ?
+         ORDER BY o.created_at, p.created_at`,
       )
-      .all(userId) as Array<{ id: string; name: string; read_key: string | null; write_key: string | null }>;
+      .all(userId) as Array<Record<string, string | null>>;
     return rows.map((row) => ({
-      id: row.id,
-      name: row.name,
-      readKey: row.read_key ?? null,
-      writeKey: row.write_key ?? null,
+      id: row.id as string,
+      name: row.name as string,
+      readKey: (row.read_key as string) ?? null,
+      writeKey: (row.write_key as string) ?? null,
+      orgId: row.org_id as string,
+      orgName: row.org_name as string,
+      role: row.role as Role,
     }));
+  }
+
+  async renameProject(orgId: string, projectId: string, name: string): Promise<boolean> {
+    const r = this.db.prepare(`UPDATE projects SET name = ? WHERE id = ? AND org_id = ?`).run(name, projectId, orgId);
+    return r.changes > 0;
+  }
+
+  async deleteProject(orgId: string, projectId: string): Promise<boolean> {
+    this.db.prepare(`DELETE FROM api_keys WHERE project_id = ?`).run(projectId);
+    const r = this.db.prepare(`DELETE FROM projects WHERE id = ? AND org_id = ?`).run(projectId, orgId);
+    return r.changes > 0;
+  }
+
+  async addMember(orgId: string, userId: string, role: Role): Promise<void> {
+    this.db
+      .prepare(
+        `INSERT INTO memberships (org_id, user_id, role) VALUES (?, ?, ?)
+         ON CONFLICT (org_id, user_id) DO UPDATE SET role = excluded.role`,
+      )
+      .run(orgId, userId, role);
+  }
+
+  async removeMember(orgId: string, userId: string): Promise<boolean> {
+    const r = this.db.prepare(`DELETE FROM memberships WHERE org_id = ? AND user_id = ?`).run(orgId, userId);
+    return r.changes > 0;
+  }
+
+  async setMemberRole(orgId: string, userId: string, role: Role): Promise<boolean> {
+    const r = this.db.prepare(`UPDATE memberships SET role = ? WHERE org_id = ? AND user_id = ?`).run(role, orgId, userId);
+    return r.changes > 0;
+  }
+
+  async listMembers(orgId: string): Promise<Member[]> {
+    const rows = this.db
+      .prepare(
+        `SELECT u.id AS user_id, u.email, u.name, m.role, m.created_at
+         FROM memberships m JOIN users u ON u.id = m.user_id
+         WHERE m.org_id = ? ORDER BY m.created_at`,
+      )
+      .all(orgId) as Array<Record<string, string | null>>;
+    return rows.map((row) => ({
+      userId: row.user_id as string,
+      email: row.email as string,
+      name: (row.name as string) ?? null,
+      role: row.role as Role,
+      createdAt: row.created_at as string,
+    }));
+  }
+
+  async getMemberRole(orgId: string, userId: string): Promise<Role | null> {
+    const row = this.db
+      .prepare(`SELECT role FROM memberships WHERE org_id = ? AND user_id = ?`)
+      .get(orgId, userId) as { role: Role } | undefined;
+    return row?.role ?? null;
+  }
+
+  async listUserOrgs(userId: string): Promise<OrgMembership[]> {
+    const rows = this.db
+      .prepare(
+        `SELECT o.id AS org_id, o.name AS org_name, m.role
+         FROM memberships m JOIN organizations o ON o.id = m.org_id
+         WHERE m.user_id = ? ORDER BY o.created_at`,
+      )
+      .all(userId) as Array<{ org_id: string; org_name: string; role: Role }>;
+    return rows.map((row) => ({ orgId: row.org_id, orgName: row.org_name, role: row.role }));
+  }
+
+  async countMembersWithRole(orgId: string, role: Role): Promise<number> {
+    const row = this.db
+      .prepare(`SELECT count(*) AS n FROM memberships WHERE org_id = ? AND role = ?`)
+      .get(orgId, role) as { n: number };
+    return row.n;
+  }
+
+  async createInvite(orgId: string, email: string, role: Role, token: string): Promise<Invite> {
+    const row = this.db
+      .prepare(
+        `INSERT INTO invites (id, org_id, email, role, token) VALUES (?, ?, ?, ?, ?) RETURNING *`,
+      )
+      .get(randomUUID(), orgId, email.toLowerCase(), role, token);
+    return mapInvite(row);
+  }
+
+  async listInvites(orgId: string): Promise<Invite[]> {
+    return this.db
+      .prepare(`SELECT * FROM invites WHERE org_id = ? AND accepted_at IS NULL ORDER BY created_at DESC`)
+      .all(orgId)
+      .map(mapInvite);
+  }
+
+  async getInviteByToken(token: string): Promise<Invite | null> {
+    const row = this.db.prepare(`SELECT * FROM invites WHERE token = ?`).get(token);
+    return row ? mapInvite(row) : null;
+  }
+
+  async markInviteAccepted(id: string): Promise<void> {
+    this.db.prepare(`UPDATE invites SET accepted_at = datetime('now') WHERE id = ?`).run(id);
+  }
+
+  async deleteInvite(orgId: string, id: string): Promise<boolean> {
+    const r = this.db.prepare(`DELETE FROM invites WHERE id = ? AND org_id = ?`).run(id, orgId);
+    return r.changes > 0;
   }
 
   async listFlags(projectId: string): Promise<Flag[]> {
@@ -380,6 +511,17 @@ function mapUser(row: any): User {
     email: row.email,
     name: row.name ?? null,
     createdAt: row.created_at,
+  };
+}
+function mapInvite(row: any): Invite {
+  return {
+    id: row.id,
+    orgId: row.org_id,
+    email: row.email,
+    role: row.role,
+    token: row.token,
+    createdAt: row.created_at,
+    acceptedAt: row.accepted_at ?? null,
   };
 }
 function mapFlag(row: any): Flag {

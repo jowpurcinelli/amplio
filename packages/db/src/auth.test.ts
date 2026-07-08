@@ -73,6 +73,7 @@ describe("SqliteStore workspace provisioning", () => {
       name: null,
       passwordHash: hashPassword("pw"),
     });
+    await s.addMember(org.id, user.id, "owner");
 
     const projects = await s.getUserProjects(user.id);
     expect(projects).toHaveLength(1);
@@ -81,6 +82,8 @@ describe("SqliteStore workspace provisioning", () => {
       name: "Default project",
       readKey: read.key,
       writeKey: write.key,
+      orgId: org.id,
+      role: "owner",
     });
     await s.close();
   });

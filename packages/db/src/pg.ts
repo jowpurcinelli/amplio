@@ -11,9 +11,13 @@ import type {
   DashboardInput,
   Flag,
   FlagInput,
+  Invite,
   KeyKind,
+  Member,
   NewUser,
+  OrgMembership,
   ResolvedKey,
+  Role,
   Store,
   User,
   UserProject,
@@ -220,15 +224,16 @@ export class PgStore implements Store {
 
   async getUserProjects(userId: string): Promise<UserProject[]> {
     const r = await this.pool.query(
-      `SELECT p.id, p.name,
+      `SELECT p.id, p.name, o.id AS org_id, o.name AS org_name, m.role,
          (SELECT key FROM api_keys k WHERE k.project_id = p.id AND k.kind = 'read'
             AND k.revoked_at IS NULL ORDER BY created_at LIMIT 1) AS read_key,
          (SELECT key FROM api_keys k WHERE k.project_id = p.id AND k.kind = 'write'
             AND k.revoked_at IS NULL ORDER BY created_at LIMIT 1) AS write_key
        FROM projects p
-       JOIN users u ON u.org_id = p.org_id
-       WHERE u.id = $1
-       ORDER BY p.created_at`,
+       JOIN memberships m ON m.org_id = p.org_id
+       JOIN organizations o ON o.id = p.org_id
+       WHERE m.user_id = $1
+       ORDER BY o.created_at, p.created_at`,
       [userId],
     );
     return r.rows.map((row: any) => ({
@@ -236,7 +241,121 @@ export class PgStore implements Store {
       name: row.name,
       readKey: row.read_key ?? null,
       writeKey: row.write_key ?? null,
+      orgId: row.org_id,
+      orgName: row.org_name,
+      role: row.role,
     }));
+  }
+
+  async renameProject(orgId: string, projectId: string, name: string): Promise<boolean> {
+    const r = await this.pool.query(
+      `UPDATE projects SET name = $3 WHERE id = $2 AND org_id = $1`,
+      [orgId, projectId, name],
+    );
+    return (r.rowCount ?? 0) > 0;
+  }
+
+  async deleteProject(orgId: string, projectId: string): Promise<boolean> {
+    const r = await this.pool.query(`DELETE FROM projects WHERE id = $2 AND org_id = $1`, [orgId, projectId]);
+    return (r.rowCount ?? 0) > 0;
+  }
+
+  async addMember(orgId: string, userId: string, role: Role): Promise<void> {
+    await this.pool.query(
+      `INSERT INTO memberships (org_id, user_id, role) VALUES ($1, $2, $3)
+       ON CONFLICT (org_id, user_id) DO UPDATE SET role = EXCLUDED.role`,
+      [orgId, userId, role],
+    );
+  }
+
+  async removeMember(orgId: string, userId: string): Promise<boolean> {
+    const r = await this.pool.query(`DELETE FROM memberships WHERE org_id = $1 AND user_id = $2`, [orgId, userId]);
+    return (r.rowCount ?? 0) > 0;
+  }
+
+  async setMemberRole(orgId: string, userId: string, role: Role): Promise<boolean> {
+    const r = await this.pool.query(
+      `UPDATE memberships SET role = $3 WHERE org_id = $1 AND user_id = $2`,
+      [orgId, userId, role],
+    );
+    return (r.rowCount ?? 0) > 0;
+  }
+
+  async listMembers(orgId: string): Promise<Member[]> {
+    const r = await this.pool.query(
+      `SELECT u.id AS user_id, u.email, u.name, m.role, m.created_at
+       FROM memberships m JOIN users u ON u.id = m.user_id
+       WHERE m.org_id = $1 ORDER BY m.created_at`,
+      [orgId],
+    );
+    return r.rows.map((row: any) => ({
+      userId: row.user_id,
+      email: row.email,
+      name: row.name,
+      role: row.role,
+      createdAt: new Date(row.created_at).toISOString(),
+    }));
+  }
+
+  async getMemberRole(orgId: string, userId: string): Promise<Role | null> {
+    const r = await this.pool.query(
+      `SELECT role FROM memberships WHERE org_id = $1 AND user_id = $2`,
+      [orgId, userId],
+    );
+    return r.rows[0]?.role ?? null;
+  }
+
+  async listUserOrgs(userId: string): Promise<OrgMembership[]> {
+    const r = await this.pool.query(
+      `SELECT o.id AS org_id, o.name AS org_name, m.role
+       FROM memberships m JOIN organizations o ON o.id = m.org_id
+       WHERE m.user_id = $1 ORDER BY o.created_at`,
+      [userId],
+    );
+    return r.rows.map((row: any) => ({ orgId: row.org_id, orgName: row.org_name, role: row.role }));
+  }
+
+  async countMembersWithRole(orgId: string, role: Role): Promise<number> {
+    const r = await this.pool.query(
+      `SELECT count(*)::int AS n FROM memberships WHERE org_id = $1 AND role = $2`,
+      [orgId, role],
+    );
+    return r.rows[0]?.n ?? 0;
+  }
+
+  async createInvite(orgId: string, email: string, role: Role, token: string): Promise<Invite> {
+    const r = await this.pool.query(
+      `INSERT INTO invites (org_id, email, role, token) VALUES ($1, $2, $3, $4)
+       RETURNING id, org_id, email, role, token, created_at, accepted_at`,
+      [orgId, email.toLowerCase(), role, token],
+    );
+    return mapInvite(r.rows[0]);
+  }
+
+  async listInvites(orgId: string): Promise<Invite[]> {
+    const r = await this.pool.query(
+      `SELECT id, org_id, email, role, token, created_at, accepted_at
+       FROM invites WHERE org_id = $1 AND accepted_at IS NULL ORDER BY created_at DESC`,
+      [orgId],
+    );
+    return r.rows.map(mapInvite);
+  }
+
+  async getInviteByToken(token: string): Promise<Invite | null> {
+    const r = await this.pool.query(
+      `SELECT id, org_id, email, role, token, created_at, accepted_at FROM invites WHERE token = $1`,
+      [token],
+    );
+    return r.rows[0] ? mapInvite(r.rows[0]) : null;
+  }
+
+  async markInviteAccepted(id: string): Promise<void> {
+    await this.pool.query(`UPDATE invites SET accepted_at = now() WHERE id = $1`, [id]);
+  }
+
+  async deleteInvite(orgId: string, id: string): Promise<boolean> {
+    const r = await this.pool.query(`DELETE FROM invites WHERE id = $2 AND org_id = $1`, [orgId, id]);
+    return (r.rowCount ?? 0) > 0;
   }
 
   async listFlags(projectId: string): Promise<Flag[]> {
@@ -328,6 +447,17 @@ function mapCohort(row: any): Cohort {
     name: row.name,
     definition: row.definition,
     createdAt: new Date(row.created_at).toISOString(),
+  };
+}
+function mapInvite(row: any): Invite {
+  return {
+    id: row.id,
+    orgId: row.org_id,
+    email: row.email,
+    role: row.role,
+    token: row.token,
+    createdAt: new Date(row.created_at).toISOString(),
+    acceptedAt: row.accepted_at ? new Date(row.accepted_at).toISOString() : null,
   };
 }
 function mapUser(row: any): User {
