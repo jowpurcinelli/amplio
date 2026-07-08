@@ -97,4 +97,16 @@ describe("SqliteStore project management", () => {
     expect(await s.deleteProject(org.id, project.id)).toBe(false); // already gone
     await s.close();
   });
+
+  it("deleteProject with a foreign org id never touches the project's keys", async () => {
+    const s = new SqliteStore(":memory:");
+    const a = await seedOrgWithOwner(s, "a@x.com");
+    const b = await seedOrgWithOwner(s, "b@x.com");
+    // Org A tries to delete org B's project. Must be a no-op, keys intact.
+    expect(await s.deleteProject(a.org.id, b.project.id)).toBe(false);
+    const bKey = (await s.listApiKeys(b.project.id)).find((k) => k.kind === "read");
+    expect(bKey).toBeTruthy();
+    expect(await s.resolveKey(bKey!.key)).not.toBeNull(); // B's key still works
+    await s.close();
+  });
 });

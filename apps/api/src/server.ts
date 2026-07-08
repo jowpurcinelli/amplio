@@ -354,6 +354,21 @@ export function buildApi(deps: ApiDeps): FastifyInstance {
     if (!parsed.success) return reply.status(400).send({ error: parsed.error.issues[0]?.message });
     const invite = await s.getInviteByToken(parsed.data.token);
     if (!invite || invite.acceptedAt) return reply.status(404).send({ error: "invite not found or already used" });
+    // Bind the invite to the address it was sent to: only that person can redeem
+    // it. Without this, anyone holding the token (e.g. a lower-privileged member
+    // who can see it) could join, or escalate their own role, via the invite.
+    const acceptor = await s.getUser(sub);
+    if (!acceptor || acceptor.email.toLowerCase() !== invite.email.toLowerCase()) {
+      return reply.status(403).send({ error: "this invite was sent to a different email" });
+    }
+    // Never let acceptance change an existing membership's role. Otherwise an
+    // owner could accept a lower-role invite for their own address and demote
+    // themselves below the last-owner floor, leaving the org unmanageable.
+    const existing = await s.getMemberRole(invite.orgId, sub);
+    if (existing) {
+      await s.markInviteAccepted(invite.id);
+      return reply.send({ ok: true, orgId: invite.orgId, role: existing });
+    }
     await s.addMember(invite.orgId, sub, invite.role);
     await s.markInviteAccepted(invite.id);
     reply.send({ ok: true, orgId: invite.orgId, role: invite.role });

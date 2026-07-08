@@ -332,7 +332,11 @@ export class SqliteStore implements Store {
   }
 
   async deleteProject(orgId: string, projectId: string): Promise<boolean> {
-    this.db.prepare(`DELETE FROM api_keys WHERE project_id = ?`).run(projectId);
+    // Scope the key delete to the org too, so passing another org's projectId
+    // can never wipe that project's keys (the project delete alone is scoped).
+    this.db
+      .prepare(`DELETE FROM api_keys WHERE project_id IN (SELECT id FROM projects WHERE id = ? AND org_id = ?)`)
+      .run(projectId, orgId);
     const r = this.db.prepare(`DELETE FROM projects WHERE id = ? AND org_id = ?`).run(projectId, orgId);
     return r.changes > 0;
   }
