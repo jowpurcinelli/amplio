@@ -25,6 +25,7 @@ import { Experiments } from "./views/Experiments.js";
 import { Library } from "./views/Library.js";
 import { Keys } from "./views/Keys.js";
 import { Settings } from "./views/Settings.js";
+import { Team } from "./views/Team.js";
 import type { ChartKind, SavedChart } from "./api.js";
 
 type View =
@@ -40,6 +41,7 @@ type View =
   | "experiments"
   | "dashboards"
   | "library"
+  | "team"
   | "keys"
   | "settings";
 
@@ -79,6 +81,7 @@ const NAV_SECTIONS: { section: string; items: { key: View; label: string; glyph:
   {
     section: "Workspace",
     items: [
+      { key: "team", label: "Team", glyph: "👥" },
       { key: "keys", label: "API keys", glyph: "🔑" },
       { key: "settings", label: "Settings", glyph: "⚙️" },
     ],
@@ -98,6 +101,7 @@ const TITLES: Record<View, { title: string; sub: string }> = {
   experiments: { title: "Experiments", sub: "Conversion by variant. Compare how each variant of a flag performs on a goal." },
   dashboards: { title: "Dashboards", sub: "Compose your saved charts into a live grid." },
   library: { title: "Library", sub: "Your saved charts. Open one to load it back into its builder." },
+  team: { title: "Team", sub: "Members, roles, invites, and projects for the active org." },
   keys: { title: "API keys", sub: "Write keys ingest events, read keys drive the dashboard." },
   settings: { title: "Settings", sub: "Point the dashboard at your Amplio query API." },
 };
@@ -268,16 +272,18 @@ export default function App() {
         {NAV_SECTIONS.map((sec) => (
           <div key={sec.section}>
             <div className="nav-section">{sec.section}</div>
-            {sec.items.map((n) => (
-              <button
-                key={n.key}
-                className={`nav-item${view === n.key ? " active" : ""}`}
-                onClick={() => navigate(n.key)}
-              >
-                <span className="nav-glyph" aria-hidden>{n.glyph}</span>
-                {n.label}
-              </button>
-            ))}
+            {sec.items
+              .filter((n) => n.key !== "team" || user)
+              .map((n) => (
+                <button
+                  key={n.key}
+                  className={`nav-item${view === n.key ? " active" : ""}`}
+                  onClick={() => navigate(n.key)}
+                >
+                  <span className="nav-glyph" aria-hidden>{n.glyph}</span>
+                  {n.label}
+                </button>
+              ))}
           </div>
         ))}
         <div className="nav-spacer" />
@@ -317,6 +323,36 @@ export default function App() {
         {view === "experiments" && <Experiments settings={settings} />}
         {view === "dashboards" && <Dashboards settings={settings} />}
         {view === "library" && <Library settings={settings} onOpen={openChart} />}
+        {view === "team" &&
+          (() => {
+            const token = getToken();
+            const active = projects.find((p) => p.id === activeProjectId) ?? projects[0];
+            if (!user || !token || !active) {
+              return (
+                <div className="card">
+                  <div className="empty-state">
+                    <div className="empty-glyph">👥</div>
+                    <div className="empty-title">Team management needs an account</div>
+                    <div className="empty-hint">
+                      Sign in with an email account (not an API key) to manage members, roles, and projects.
+                    </div>
+                  </div>
+                </div>
+              );
+            }
+            return (
+              <Team
+                apiUrl={settings.apiUrl}
+                token={token}
+                org={{ id: active.orgId, name: active.orgName, role: active.role }}
+                projects={projects}
+                onProjectsChanged={() => {
+                  const t = getToken();
+                  if (t) void loadProjects(t);
+                }}
+              />
+            );
+          })()}
         {view === "keys" && <Keys settings={settings} />}
         {view === "settings" && <Settings settings={settings} onSave={save} />}
       </main>

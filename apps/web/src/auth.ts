@@ -15,6 +15,9 @@ export interface UserProject {
   name: string;
   readKey: string | null;
   writeKey: string | null;
+  orgId: string;
+  orgName: string;
+  role: Role;
 }
 
 export function getToken(): string | null {
@@ -83,3 +86,53 @@ export function myProjects(apiUrl: string, token: string) {
     headers: { authorization: `Bearer ${token}` },
   });
 }
+
+// --- org / team management (session-token auth) ---
+export type Role = "owner" | "admin" | "member";
+export interface Member {
+  userId: string;
+  email: string;
+  name: string | null;
+  role: Role;
+  createdAt: string;
+}
+export interface Invite {
+  id: string;
+  orgId: string;
+  email: string;
+  role: Role;
+  token: string;
+  createdAt: string;
+}
+
+const authHeader = (token: string): RequestInit => ({ headers: { authorization: `Bearer ${token}` } });
+const jsonAuth = (token: string, method: string, body: unknown): RequestInit => ({
+  method,
+  headers: { "content-type": "application/json", authorization: `Bearer ${token}` },
+  body: JSON.stringify(body),
+});
+
+export const listMembers = (apiUrl: string, token: string, orgId: string) =>
+  authFetch<{ members: Member[] }>(apiUrl, `/orgs/${orgId}/members`, authHeader(token)).then((r) => r.members);
+export const setMemberRole = (apiUrl: string, token: string, orgId: string, userId: string, role: Role) =>
+  authFetch<{ ok: true }>(apiUrl, `/orgs/${orgId}/members/${userId}`, jsonAuth(token, "PATCH", { role }));
+export const removeMember = (apiUrl: string, token: string, orgId: string, userId: string) =>
+  authFetch<{ ok: true }>(apiUrl, `/orgs/${orgId}/members/${userId}`, { method: "DELETE", ...authHeader(token) });
+
+export const listInvites = (apiUrl: string, token: string, orgId: string) =>
+  authFetch<{ invites: Invite[] }>(apiUrl, `/orgs/${orgId}/invites`, authHeader(token)).then((r) => r.invites);
+export const createInvite = (apiUrl: string, token: string, orgId: string, email: string, role: Role) =>
+  authFetch<{ invite: Invite }>(apiUrl, `/orgs/${orgId}/invites`, jsonAuth(token, "POST", { email, role })).then(
+    (r) => r.invite,
+  );
+export const deleteInvite = (apiUrl: string, token: string, orgId: string, id: string) =>
+  authFetch<{ ok: true }>(apiUrl, `/orgs/${orgId}/invites/${id}`, { method: "DELETE", ...authHeader(token) });
+export const acceptInvite = (apiUrl: string, token: string, inviteToken: string) =>
+  authFetch<{ ok: true; orgId: string; role: Role }>(apiUrl, "/invites/accept", jsonAuth(token, "POST", { token: inviteToken }));
+
+export const createProject = (apiUrl: string, token: string, orgId: string, name: string) =>
+  authFetch<{ project: { id: string; name: string } }>(apiUrl, `/orgs/${orgId}/projects`, jsonAuth(token, "POST", { name }));
+export const renameProject = (apiUrl: string, token: string, orgId: string, projectId: string, name: string) =>
+  authFetch<{ ok: true }>(apiUrl, `/orgs/${orgId}/projects/${projectId}`, jsonAuth(token, "PATCH", { name }));
+export const deleteProject = (apiUrl: string, token: string, orgId: string, projectId: string) =>
+  authFetch<{ ok: true }>(apiUrl, `/orgs/${orgId}/projects/${projectId}`, { method: "DELETE", ...authHeader(token) });
