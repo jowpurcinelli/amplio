@@ -549,3 +549,44 @@ table.data th {
 .auth-card .field input {
   width: 100%;
 }
+
+/* --- responsive: keep the app usable on narrow windows and tablets --- */
+@media (max-width: 860px) {
+  .app {
+    grid-template-columns: 1fr;
+  }
+  .sidebar {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 2px 6px;
+    padding: 10px 12px;
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+    position: sticky;
+    top: 0;
+    z-index: 20;
+  }
+  .sidebar .brand {
+    padding: 4px 8px;
+    margin-right: 6px;
+  }
+  /* Section labels, the flexible spacer, project switcher, and footer add
+     little on a horizontal strip; hide them so nav items stay on one line. */
+  .sidebar .nav-section,
+  .sidebar .nav-spacer,
+  .sidebar .proj-switch,
+  .sidebar .sidebar-footer {
+    display: none;
+  }
+  .sidebar > div {
+    display: contents;
+  }
+  .nav-item {
+    width: auto;
+    padding: 6px 9px;
+  }
+  .main {
+    padding: 18px 16px 48px;
+  }
+}
