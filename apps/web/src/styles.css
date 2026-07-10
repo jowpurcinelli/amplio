@@ -47,15 +47,15 @@
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --page: #09090b;
-    --surface-1: #131316;
-    --surface-2: #1c1c21;
-    --surface-3: #26262c;
+    --page: #08080a;
+    --surface-1: #161619;
+    --surface-2: #1f1f24;
+    --surface-3: #2a2a30;
     --text-primary: #f4f4f5;
     --text-secondary: #a1a1aa;
     --muted: #71717a;
-    --border: rgba(255, 255, 255, 0.08);
-    --border-strong: rgba(255, 255, 255, 0.16);
+    --border: rgba(255, 255, 255, 0.1);
+    --border-strong: rgba(255, 255, 255, 0.18);
     --grid: #26262c;
     --baseline: #3f3f46;
     --good: #22c55e;
@@ -81,15 +81,15 @@
 }
 
 :root[data-theme="dark"] {
-  --page: #09090b;
-  --surface-1: #131316;
-  --surface-2: #1c1c21;
-  --surface-3: #26262c;
+  --page: #08080a;
+  --surface-1: #161619;
+  --surface-2: #1f1f24;
+  --surface-3: #2a2a30;
   --text-primary: #f4f4f5;
   --text-secondary: #a1a1aa;
   --muted: #71717a;
-  --border: rgba(255, 255, 255, 0.08);
-  --border-strong: rgba(255, 255, 255, 0.16);
+  --border: rgba(255, 255, 255, 0.1);
+  --border-strong: rgba(255, 255, 255, 0.18);
   --grid: #26262c;
   --baseline: #3f3f46;
   --good: #22c55e;
@@ -277,6 +277,13 @@ code {
   overflow: auto;
   padding: 26px 26px 64px;
 }
+/* One consistent content column across every view, centered in the workspace,
+   so pages never stretch edge to edge or jump width between views. */
+.main > * {
+  max-width: 1160px;
+  margin-left: auto;
+  margin-right: auto;
+}
 .view-head {
   margin: 0 0 20px;
 }
@@ -316,28 +323,10 @@ code {
   position: relative;
 }
 .switcher select {
-  appearance: none;
-  padding: 7px 30px 7px 12px;
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--border);
-  background: var(--surface-1);
-  color: var(--text-primary);
-  font: inherit;
+  padding: 8px 32px 8px 12px;
+  background-color: var(--surface-1);
   font-weight: 550;
-  cursor: pointer;
   max-width: 220px;
-}
-.switcher::after {
-  content: "";
-  position: absolute;
-  right: 11px;
-  top: 50%;
-  width: 7px;
-  height: 7px;
-  border-right: 1.6px solid var(--muted);
-  border-bottom: 1.6px solid var(--muted);
-  transform: translateY(-65%) rotate(45deg);
-  pointer-events: none;
 }
 .avatar {
   display: inline-flex;
@@ -437,8 +426,16 @@ input[type="url"] {
   color: var(--text-primary);
   transition: border-color 120ms ease, box-shadow 120ms ease, background 120ms ease;
 }
+/* Native selects break the design language; render our own chevron on a filled
+   field that matches the text inputs across every browser. */
 select {
   cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  padding-right: 32px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%238b8b93' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 11px center;
 }
 input::placeholder,
 textarea::placeholder {

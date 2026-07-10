@@ -10,6 +10,7 @@ import {
   type PropertyFilter,
 } from "../api.js";
 import { Field, EventSelect } from "../components/Field.js";
+import { EmptyState } from "../components/EmptyState.js";
 
 export function Cohorts({ settings }: { settings: Settings }) {
   const [names, setNames] = useState<string[]>([]);
@@ -102,7 +103,11 @@ export function Cohorts({ settings }: { settings: Settings }) {
       <div className="card">
         {error && <div className="error">{error}</div>}
         {cohorts.length === 0 && !error && (
-          <div className="empty">No cohorts yet. Define one above, then apply it in Segmentation.</div>
+          <EmptyState
+            icon="cohorts"
+            title="No cohorts yet"
+            hint="Define one above, then apply it in Segmentation."
+          />
         )}
         {cohorts.length > 0 && (
           <table className="data">

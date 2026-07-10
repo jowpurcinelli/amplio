@@ -8,6 +8,7 @@ import {
   type ExperimentRow,
 } from "../api.js";
 import { Field, EventSelect } from "../components/Field.js";
+import { EmptyState } from "../components/EmptyState.js";
 import { PRESETS, presetRange } from "../lib/time.js";
 import { formatNumber } from "../lib/format.js";
 
@@ -81,8 +82,20 @@ export function Experiments({ settings }: { settings: Settings }) {
 
       <div className="card">
         {error && <div className="error">{error}</div>}
-        {!rows && !error && <div className="empty">Pick a flag, an exposure event, and a goal event.</div>}
-        {rows && data.length === 0 && <div className="empty">No exposures found for this flag and range.</div>}
+        {!rows && !error && (
+          <EmptyState
+            icon="experiments"
+            title="Set up an experiment"
+            hint="Pick a flag, an exposure event, and a goal event."
+          />
+        )}
+        {rows && data.length === 0 && (
+          <EmptyState
+            icon="experiments"
+            title="No exposures found"
+            hint="No exposures found for this flag and range."
+          />
+        )}
         {data.length > 0 && (
           <table className="data">
             <thead>

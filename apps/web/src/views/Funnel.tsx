@@ -4,6 +4,7 @@ import { fetchEventNames, queryFunnel } from "../api.js";
 import { Field, EventSelect } from "../components/Field.js";
 import { FunnelChart, type FunnelStep } from "../components/FunnelChart.js";
 import { SaveBar } from "../components/SaveBar.js";
+import { EmptyState } from "../components/EmptyState.js";
 import { PRESETS, presetRange } from "../lib/time.js";
 
 const WINDOWS = [
@@ -125,7 +126,13 @@ export function Funnel({
 
       <div className="card">
         {error && <div className="error">{error}</div>}
-        {!result && !error && <div className="empty">Add at least two steps and run the funnel.</div>}
+        {!result && !error && (
+          <EmptyState
+            icon="funnel"
+            title="No funnel yet"
+            hint="Add at least two steps and run the funnel."
+          />
+        )}
         {result && (
           <>
             {overall !== null && (

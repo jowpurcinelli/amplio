@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import type { Settings } from "../config.js";
 import { listKeys, createKey, revokeKey, type ApiKeyRow } from "../api.js";
 import { Field } from "../components/Field.js";
+import { EmptyState } from "../components/EmptyState.js";
 
 export function Keys({ settings }: { settings: Settings }) {
   const [keys, setKeys] = useState<ApiKeyRow[] | null>(null);
@@ -57,28 +58,48 @@ export function Keys({ settings }: { settings: Settings }) {
 
       <div className="card">
         {error && <div className="error">{error}</div>}
+        {keys && keys.length === 0 && !error && (
+          <EmptyState
+            icon="keys"
+            title="No API keys yet"
+            hint="Create a write key to ingest events, or a read key to drive the dashboard."
+          />
+        )}
         {keys && keys.length > 0 && (
           <table className="data">
             <thead>
               <tr>
                 <th>Key</th>
-                <th>Type</th>
+                <th style={{ width: 90 }}>Type</th>
                 <th>Label</th>
-                <th>Status</th>
-                <th></th>
+                <th style={{ width: 110 }}>Status</th>
+                <th style={{ width: 110 }}></th>
               </tr>
             </thead>
             <tbody>
               {keys.map((k) => (
-                <tr key={k.id} style={{ opacity: k.revokedAt ? 0.5 : 1 }}>
-                  <td style={{ fontFamily: "ui-monospace, monospace" }}>{k.key}</td>
-                  <td>{k.kind}</td>
-                  <td>{k.label ?? ""}</td>
-                  <td>{k.revokedAt ? "revoked" : "active"}</td>
+                <tr key={k.id}>
+                  <td style={{ fontFamily: "var(--mono)", fontSize: 13 }}>{k.key}</td>
+                  <td>
+                    <span className="badge">{k.kind}</span>
+                  </td>
+                  <td style={{ color: "var(--text-secondary)" }}>{k.label ?? "—"}</td>
+                  <td>
+                    {k.revokedAt ? (
+                      <span className="badge">Revoked</span>
+                    ) : (
+                      <span className="badge good">
+                        <span
+                          style={{ width: 6, height: 6, borderRadius: 999, background: "var(--good)", display: "inline-block" }}
+                        />
+                        Active
+                      </span>
+                    )}
+                  </td>
                   <td>
                     {!k.revokedAt && (
-                      <button className="chip" onClick={() => revoke(k.id)}>
-                        Revoke <span>×</span>
+                      <button className="btn danger small" onClick={() => revoke(k.id)}>
+                        Revoke
                       </button>
                     )}
                   </td>

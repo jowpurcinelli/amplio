@@ -5,6 +5,7 @@ import type { RetentionRow } from "../api.js";
 import { Field, EventSelect } from "../components/Field.js";
 import { LineChart } from "../components/LineChart.js";
 import { SaveBar } from "../components/SaveBar.js";
+import { EmptyState } from "../components/EmptyState.js";
 import { PRESETS, presetRange, SERIES_VARS } from "../lib/time.js";
 import { formatNumber } from "../lib/format.js";
 import { downloadCsv } from "../lib/csv.js";
@@ -109,8 +110,20 @@ export function Retention({
 
       <div className="card">
         {error && <div className="error">{error}</div>}
-        {!rows && !error && <div className="empty">Choose a start event and run.</div>}
-        {rows && cohort === 0 && <div className="empty">No cohort found for this event and range.</div>}
+        {!rows && !error && (
+          <EmptyState
+            icon="retention"
+            title="Ready to measure retention"
+            hint="Choose a start event and run."
+          />
+        )}
+        {rows && cohort === 0 && (
+          <EmptyState
+            icon="retention"
+            title="No cohort found"
+            hint="No cohort found for this event and range."
+          />
+        )}
         {rows && cohort > 0 && (
           <>
             <div className="stat-row">

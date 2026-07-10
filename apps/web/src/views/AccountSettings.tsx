@@ -68,13 +68,14 @@ export function AccountSettings({
   const canSave = currentPassword.length > 0 && newPassword.length >= 8;
 
   return (
-    <>
+    <div style={{ maxWidth: 620 }}>
       <div className="card">
         <h3 style={{ marginTop: 0 }}>Change password</h3>
         <Field label="Current password">
           <input
             type="password"
             autoComplete="current-password"
+            placeholder="Enter your current password"
             value={currentPassword}
             onChange={(e) => setCurrentPassword(e.target.value)}
           />
@@ -95,14 +96,14 @@ export function AccountSettings({
 
       <div className="card">
         <h3 style={{ marginTop: 0 }}>Delete account</h3>
-        <p className="empty" style={{ marginTop: 0 }}>
+        <p style={{ marginTop: 0, color: "var(--muted)", fontSize: 13, lineHeight: 1.6, maxWidth: "62ch" }}>
           This permanently removes your account and signs you out. This cannot be undone. If you
           are the sole owner of an organization with other members, transfer ownership first.
         </p>
-        <button className="btn secondary" onClick={deleteAccount} disabled={deleting}>
-          {deleting ? "Deleting..." : "Delete account"}
+        <button className="btn danger" onClick={deleteAccount} disabled={deleting}>
+          {deleting ? "Deleting…" : "Delete account"}
         </button>
       </div>
-    </>
+    </div>
   );
 }

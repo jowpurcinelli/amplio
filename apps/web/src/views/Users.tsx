@@ -2,6 +2,7 @@ import { useState } from "react";
 import type { Settings } from "../config.js";
 import { queryUser, type UserActivityRow, type UserSummary } from "../api.js";
 import { Field } from "../components/Field.js";
+import { EmptyState } from "../components/EmptyState.js";
 import { downloadCsv } from "../lib/csv.js";
 import { formatNumber } from "../lib/format.js";
 
@@ -72,8 +73,20 @@ export function Users({ settings }: { settings: Settings }) {
 
       <div className="card">
         {error && <div className="error">{error}</div>}
-        {!activity && !error && <div className="empty">Enter a user id to see their event stream.</div>}
-        {summary && !found && <div className="empty">No events found for this user.</div>}
+        {!activity && !error && (
+          <EmptyState
+            icon="users"
+            title="Look up a user"
+            hint="Enter a user id to see their event stream."
+          />
+        )}
+        {summary && !found && (
+          <EmptyState
+            icon="users"
+            title="No events found"
+            hint="No events found for this user."
+          />
+        )}
         {found && activity && (
           <>
             <div className="stat-row">

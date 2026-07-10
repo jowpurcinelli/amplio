@@ -292,7 +292,6 @@ export default function App() {
           </div>
         ))}
         <div className="nav-spacer" />
-        {user && <div className="sidebar-footer">Signed in as {user.email}</div>}
       </aside>
 
       <div className="workspace">

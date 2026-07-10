@@ -9,6 +9,7 @@ import {
   type FlagVariant,
 } from "../api.js";
 import { Field } from "../components/Field.js";
+import { EmptyState } from "../components/EmptyState.js";
 
 export function Flags({ settings }: { settings: Settings }) {
   const [flags, setFlags] = useState<FlagRow[] | null>(null);
@@ -110,7 +111,11 @@ export function Flags({ settings }: { settings: Settings }) {
       <div className="card">
         {error && <div className="error">{error}</div>}
         {flags && flags.length === 0 && !error && (
-          <div className="empty">No flags yet. Create one above, then evaluate it from an SDK.</div>
+          <EmptyState
+            icon="flags"
+            title="No flags yet"
+            hint="Create one above, then evaluate it from an SDK."
+          />
         )}
         {flags && flags.length > 0 && (
           <table className="data">

@@ -11,6 +11,7 @@ import {
 } from "../api.js";
 import { Field } from "../components/Field.js";
 import { ChartTile } from "../components/ChartTile.js";
+import { EmptyState } from "../components/EmptyState.js";
 
 export function Dashboards({ settings }: { settings: Settings }) {
   const [dashboards, setDashboards] = useState<Dashboard[]>([]);
@@ -87,7 +88,7 @@ export function Dashboards({ settings }: { settings: Settings }) {
           <Field label="New dashboard">
             <input type="text" placeholder="Name" value={newName} onChange={(e) => setNewName(e.target.value)} />
           </Field>
-          <button className="btn secondary" onClick={create} disabled={!newName.trim()}>
+          <button className="btn" onClick={create} disabled={!newName.trim()}>
             Create
           </button>
           {selected && (
@@ -114,7 +115,13 @@ export function Dashboards({ settings }: { settings: Settings }) {
       {error && <div className="card"><div className="error">{error}</div></div>}
 
       {selected && selected.layout.length === 0 && (
-        <div className="card"><div className="empty">No tiles yet. Save charts in the analysis views, then add them here.</div></div>
+        <div className="card">
+          <EmptyState
+            icon="dashboards"
+            title="No tiles yet"
+            hint="Save charts in the analysis views, then add them here."
+          />
+        </div>
       )}
 
       {selected && selected.layout.length > 0 && (
@@ -130,7 +137,11 @@ export function Dashboards({ settings }: { settings: Settings }) {
             if (!chart) {
               return (
                 <div className="card" key={i} style={{ margin: 0 }}>
-                  <div className="empty">Chart no longer exists.</div>
+                  <EmptyState
+                    icon="dashboards"
+                    title="Chart no longer exists"
+                    hint="This saved chart was deleted. Remove the tile to tidy up."
+                  />
                   <button className="chip" onClick={() => removeTile(i)}>Remove <span>×</span></button>
                 </div>
               );

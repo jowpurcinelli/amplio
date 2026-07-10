@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import type { Settings } from "../config.js";
 import { listCharts, deleteChart, type SavedChart } from "../api.js";
+import { EmptyState } from "../components/EmptyState.js";
 
 const KIND_LABEL: Record<string, string> = {
   segmentation: "Segmentation",
@@ -44,7 +45,11 @@ export function Library({
     <div className="card">
       {error && <div className="error">{error}</div>}
       {!error && charts && charts.length === 0 && (
-        <div className="empty">No saved charts yet. Build one and click Save chart.</div>
+        <EmptyState
+          icon="library"
+          title="No saved charts yet"
+          hint="Build one and click Save chart."
+        />
       )}
       {charts && charts.length > 0 && (
         <table className="data">
