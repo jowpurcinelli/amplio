@@ -2,6 +2,7 @@ import pg from "pg";
 import type { Pool as PoolType } from "pg";
 import { generateKey } from "./keys.js";
 import type {
+  AdminOrg,
   ApiKey,
   Chart,
   ChartInput,
@@ -224,12 +225,50 @@ export class PgStore implements Store {
     return (r.rowCount ?? 0) > 0;
   }
 
+  async renameOrg(id: string, name: string): Promise<boolean> {
+    const r = await this.pool.query(`UPDATE organizations SET name = $2 WHERE id = $1`, [id, name]);
+    return (r.rowCount ?? 0) > 0;
+  }
+
   async listOrgProjects(orgId: string): Promise<{ id: string; name: string }[]> {
     const r = await this.pool.query(
       `SELECT id, name FROM projects WHERE org_id = $1 ORDER BY created_at`,
       [orgId],
     );
     return r.rows.map((row: any) => ({ id: row.id, name: row.name }));
+  }
+
+  async updatePassword(userId: string, passwordHash: string): Promise<boolean> {
+    const r = await this.pool.query(`UPDATE users SET password_hash = $2 WHERE id = $1`, [userId, passwordHash]);
+    return (r.rowCount ?? 0) > 0;
+  }
+
+  async deleteUser(userId: string): Promise<boolean> {
+    // Memberships cascade via FK on the user; this removes the account itself.
+    const r = await this.pool.query(`DELETE FROM users WHERE id = $1`, [userId]);
+    return (r.rowCount ?? 0) > 0;
+  }
+
+  async listAllOrgs(): Promise<AdminOrg[]> {
+    const r = await this.pool.query(
+      `SELECT o.id, o.name, o.plan, o.created_at,
+         (SELECT count(*) FROM memberships m WHERE m.org_id = o.id) AS members,
+         (SELECT count(*) FROM projects p WHERE p.org_id = o.id) AS projects
+       FROM organizations o ORDER BY o.created_at DESC`,
+    );
+    return r.rows.map((row: any) => ({
+      id: row.id,
+      name: row.name,
+      plan: row.plan,
+      members: Number(row.members),
+      projects: Number(row.projects),
+      createdAt: new Date(row.created_at).toISOString(),
+    }));
+  }
+
+  async countUsers(): Promise<number> {
+    const r = await this.pool.query(`SELECT count(*)::int AS n FROM users`);
+    return r.rows[0]?.n ?? 0;
   }
 
   async createProject(orgId: string, name: string): Promise<{ id: string }> {

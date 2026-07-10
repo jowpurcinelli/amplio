@@ -16,6 +16,8 @@ export interface ApiConfig {
   readKeys: Map<string, string>;
   /** HMAC secret for signing session tokens. */
   authSecret: string;
+  /** Lowercased emails allowed into the instance-admin console. */
+  adminEmails: Set<string>;
 }
 
 function parseReadKeys(raw: string | undefined): Map<string, string> {
@@ -68,5 +70,11 @@ export function loadApiConfig(env: NodeJS.ProcessEnv = process.env): ApiConfig {
     dbSpec: env.AMPLIO_DB ?? env.DATABASE_URL,
     readKeys: parseReadKeys(env.AMPLIO_READ_KEYS),
     authSecret: resolveAuthSecret(env),
+    adminEmails: new Set(
+      (env.AMPLIO_ADMIN_EMAILS ?? "")
+        .split(",")
+        .map((e) => e.trim().toLowerCase())
+        .filter(Boolean),
+    ),
   };
 }

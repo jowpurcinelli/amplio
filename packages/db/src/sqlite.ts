@@ -1,6 +1,7 @@
 import { DatabaseSync } from "node:sqlite";
 import { generateKey, randomUUID } from "./keys.js";
 import type {
+  AdminOrg,
   ApiKey,
   Chart,
   ChartInput,
@@ -276,10 +277,50 @@ export class SqliteStore implements Store {
     return r.changes > 0;
   }
 
+  async renameOrg(id: string, name: string): Promise<boolean> {
+    const r = this.db.prepare(`UPDATE organizations SET name = ? WHERE id = ?`).run(name, id);
+    return r.changes > 0;
+  }
+
   async listOrgProjects(orgId: string): Promise<{ id: string; name: string }[]> {
     return this.db
       .prepare(`SELECT id, name FROM projects WHERE org_id = ? ORDER BY created_at`)
       .all(orgId) as Array<{ id: string; name: string }>;
+  }
+
+  async updatePassword(userId: string, passwordHash: string): Promise<boolean> {
+    const r = this.db.prepare(`UPDATE users SET password_hash = ? WHERE id = ?`).run(passwordHash, userId);
+    return r.changes > 0;
+  }
+
+  async deleteUser(userId: string): Promise<boolean> {
+    this.db.prepare(`DELETE FROM memberships WHERE user_id = ?`).run(userId);
+    const r = this.db.prepare(`DELETE FROM users WHERE id = ?`).run(userId);
+    return r.changes > 0;
+  }
+
+  async listAllOrgs(): Promise<AdminOrg[]> {
+    const rows = this.db
+      .prepare(
+        `SELECT o.id, o.name, o.plan, o.created_at,
+           (SELECT count(*) FROM memberships m WHERE m.org_id = o.id) AS members,
+           (SELECT count(*) FROM projects p WHERE p.org_id = o.id) AS projects
+         FROM organizations o ORDER BY o.created_at DESC`,
+      )
+      .all() as Array<Record<string, string | number>>;
+    return rows.map((row) => ({
+      id: row.id as string,
+      name: row.name as string,
+      plan: row.plan as string,
+      members: Number(row.members),
+      projects: Number(row.projects),
+      createdAt: row.created_at as string,
+    }));
+  }
+
+  async countUsers(): Promise<number> {
+    const row = this.db.prepare(`SELECT count(*) AS n FROM users`).get() as { n: number };
+    return row.n;
   }
 
   async deleteOrg(id: string): Promise<void> {

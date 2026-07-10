@@ -12,6 +12,7 @@ import {
   createProject,
   renameProject,
   deleteProject,
+  renameOrg,
   getUsage,
   setPlan,
   type Member,
@@ -55,6 +56,18 @@ export function Team({
       setMembers(await listMembers(apiUrl, token, org.id));
       setUsage(await getUsage(apiUrl, token, org.id));
       if (canManage) setInvites(await listInvites(apiUrl, token, org.id));
+    } catch (e) {
+      toast.err(e instanceof Error ? e.message : String(e));
+    }
+  };
+
+  const renameThisOrg = async () => {
+    const name = prompt("Rename organization", org.name);
+    if (!name || name === org.name) return;
+    try {
+      await renameOrg(apiUrl, token, org.id, name);
+      toast.ok("Organization renamed");
+      onProjectsChanged();
     } catch (e) {
       toast.err(e instanceof Error ? e.message : String(e));
     }
@@ -168,6 +181,11 @@ export function Team({
               You are {org.role === "owner" ? "an owner" : `a ${org.role}`} of this org.
             </div>
           </div>
+          {canManage && (
+            <button className="btn secondary" onClick={renameThisOrg}>
+              Rename org
+            </button>
+          )}
         </div>
       </div>
 

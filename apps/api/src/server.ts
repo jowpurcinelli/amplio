@@ -20,7 +20,7 @@ import {
 import { makeStore, hashPassword, verifyPassword, signToken, verifyToken, PLANS, DEFAULT_PLAN, isPlanId, planLimit, type Store } from "@amplio/db";
 import type { ApiConfig } from "./config.js";
 import { randomBytes } from "node:crypto";
-import { funnelBody, retentionBody, segmentationBody, userBody, experimentBody, chartBody, dashboardBody, cohortBody, keyBody, flagBody, signupBody, loginBody, inviteBody, memberRoleBody, acceptInviteBody, projectBody, planBody } from "./schemas.js";
+import { funnelBody, retentionBody, segmentationBody, userBody, experimentBody, chartBody, dashboardBody, cohortBody, keyBody, flagBody, signupBody, loginBody, inviteBody, memberRoleBody, acceptInviteBody, projectBody, planBody, passwordBody, orgNameBody } from "./schemas.js";
 
 export interface ApiDeps {
   cfg: ApiConfig;
@@ -450,6 +450,98 @@ export function buildApi(deps: ApiDeps): FastifyInstance {
     const parsed = planBody.safeParse(req.body);
     if (!parsed.success) return reply.status(400).send({ error: parsed.error.issues[0]?.message });
     await s.setOrgPlan(orgId, parsed.data.plan);
+    reply.send({ ok: true, plan: parsed.data.plan });
+  });
+
+  app.patch("/orgs/:orgId/name", async (req, reply) => {
+    const s = requireStore(reply);
+    if (!s) return;
+    const { orgId } = req.params as { orgId: string };
+    if (!(await requireOrgRole(s, req, reply, orgId, "admin"))) return;
+    const parsed = orgNameBody.safeParse(req.body);
+    if (!parsed.success) return reply.status(400).send({ error: parsed.error.issues[0]?.message });
+    const ok = await s.renameOrg(orgId, parsed.data.name);
+    if (!ok) return reply.status(404).send({ error: "org not found" });
+    reply.send({ ok: true });
+  });
+
+  // --- account management (session-token auth) ---
+  app.post("/auth/password", async (req, reply) => {
+    const s = requireStore(reply);
+    if (!s) return;
+    const sub = sessionSub(req, reply);
+    if (!sub) return;
+    const parsed = passwordBody.safeParse(req.body);
+    if (!parsed.success) return reply.status(400).send({ error: parsed.error.issues[0]?.message });
+    const user = await s.getUser(sub);
+    if (!user) return reply.status(401).send({ error: "not authenticated" });
+    const creds = await s.getCredentials(user.email);
+    if (!creds || !verifyPassword(parsed.data.currentPassword, creds.passwordHash)) {
+      return reply.status(401).send({ error: "current password is incorrect" });
+    }
+    await s.updatePassword(sub, hashPassword(parsed.data.newPassword));
+    reply.send({ ok: true });
+  });
+
+  // Delete the signed-in user's account. Orgs they solely own are removed with
+  // them; orgs where they are the sole owner but others remain are refused so a
+  // team is never left ownerless.
+  app.delete("/auth/account", async (req, reply) => {
+    const s = requireStore(reply);
+    if (!s) return;
+    const sub = sessionSub(req, reply);
+    if (!sub) return;
+    const orgs = await s.listUserOrgs(sub);
+    for (const o of orgs) {
+      if (o.role !== "owner") continue;
+      const owners = await s.countMembersWithRole(o.orgId, "owner");
+      const members = (await s.listMembers(o.orgId)).length;
+      if (owners <= 1 && members > 1) {
+        return reply.status(409).send({
+          error: `you are the sole owner of "${o.orgName}"; transfer ownership before deleting your account`,
+        });
+      }
+    }
+    for (const o of orgs) {
+      const members = o.role === "owner" ? (await s.listMembers(o.orgId)).length : 2;
+      if (o.role === "owner" && members <= 1) {
+        await s.deleteOrg(o.orgId); // solo org: remove it entirely (cascades)
+      } else {
+        await s.removeMember(o.orgId, sub);
+      }
+    }
+    await s.deleteUser(sub);
+    reply.send({ ok: true });
+  });
+
+  // --- instance admin console (superadmin emails via AMPLIO_ADMIN_EMAILS) ---
+  // True when the bearer token is a valid session for an allow-listed admin email.
+  const isAdmin = (req: FastifyRequest): boolean => {
+    const payload = verifyToken(extractKey(req), cfg.authSecret);
+    return payload ? cfg.adminEmails.has(payload.email.toLowerCase()) : false;
+  };
+
+  app.get("/admin/me", async (req, reply) => {
+    reply.send({ isAdmin: isAdmin(req) });
+  });
+
+  app.get("/admin/overview", async (req, reply) => {
+    const s = requireStore(reply);
+    if (!s) return;
+    if (!isAdmin(req)) return reply.status(403).send({ error: "admin access required" });
+    const [orgs, users] = await Promise.all([s.listAllOrgs(), s.countUsers()]);
+    reply.send({ totals: { orgs: orgs.length, users }, orgs });
+  });
+
+  app.post("/admin/orgs/:orgId/plan", async (req, reply) => {
+    const s = requireStore(reply);
+    if (!s) return;
+    if (!isAdmin(req)) return reply.status(403).send({ error: "admin access required" });
+    const { orgId } = req.params as { orgId: string };
+    const parsed = planBody.safeParse(req.body);
+    if (!parsed.success) return reply.status(400).send({ error: parsed.error.issues[0]?.message });
+    const ok = await s.setOrgPlan(orgId, parsed.data.plan);
+    if (!ok) return reply.status(404).send({ error: "org not found" });
     reply.send({ ok: true, plan: parsed.data.plan });
   });
 

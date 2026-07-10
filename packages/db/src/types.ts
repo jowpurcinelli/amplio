@@ -70,6 +70,15 @@ export interface OrgMembership {
   orgName: string;
   role: Role;
 }
+/** An org row in the instance-admin console. */
+export interface AdminOrg {
+  id: string;
+  name: string;
+  plan: string;
+  members: number;
+  projects: number;
+  createdAt: string;
+}
 /** A member of an org, as shown in the members list. */
 export interface Member {
   userId: string;
@@ -163,8 +172,17 @@ export interface Store {
   /** The org's billing plan id ('free' by default), or null if the org is gone. */
   getOrgPlan(id: string): Promise<string | null>;
   setOrgPlan(id: string, plan: string): Promise<boolean>;
+  renameOrg(id: string, name: string): Promise<boolean>;
   /** Projects in an org (id + name only), for usage metering and admin. */
   listOrgProjects(orgId: string): Promise<{ id: string; name: string }[]>;
+
+  // --- account + instance admin ---
+  updatePassword(userId: string, passwordHash: string): Promise<boolean>;
+  /** Delete a user and their memberships (orgs are handled by the caller). */
+  deleteUser(userId: string): Promise<boolean>;
+  /** Instance-wide org list for the admin console. */
+  listAllOrgs(): Promise<AdminOrg[]>;
+  countUsers(): Promise<number>;
   createProject(orgId: string, name: string): Promise<{ id: string }>;
   renameProject(orgId: string, projectId: string, name: string): Promise<boolean>;
   deleteProject(orgId: string, projectId: string): Promise<boolean>;

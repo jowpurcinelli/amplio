@@ -6,11 +6,14 @@ import {
   getToken,
   me as fetchMe,
   myProjects,
+  adminMe,
   unskipAuth,
   type AuthUser,
   type UserProject,
 } from "./auth.js";
 import { Login } from "./views/Login.js";
+import { Admin } from "./views/Admin.js";
+import { AccountSettings } from "./views/AccountSettings.js";
 import { Segmentation } from "./views/Segmentation.js";
 import { Funnel } from "./views/Funnel.js";
 import { Retention } from "./views/Retention.js";
@@ -42,6 +45,8 @@ type View =
   | "dashboards"
   | "library"
   | "team"
+  | "account"
+  | "admin"
   | "keys"
   | "settings";
 
@@ -83,6 +88,8 @@ const NAV_SECTIONS: { section: string; items: { key: View; label: string; glyph:
     items: [
       { key: "team", label: "Team", glyph: "👥" },
       { key: "keys", label: "API keys", glyph: "🔑" },
+      { key: "account", label: "Account", glyph: "🪪" },
+      { key: "admin", label: "Admin", glyph: "🛡️" },
       { key: "settings", label: "Settings", glyph: "⚙️" },
     ],
   },
@@ -102,6 +109,8 @@ const TITLES: Record<View, { title: string; sub: string }> = {
   dashboards: { title: "Dashboards", sub: "Compose your saved charts into a live grid." },
   library: { title: "Library", sub: "Your saved charts. Open one to load it back into its builder." },
   team: { title: "Team", sub: "Members, roles, invites, and projects for the active org." },
+  account: { title: "Account", sub: "Your password and account." },
+  admin: { title: "Admin", sub: "Instance-wide organizations and users." },
   keys: { title: "API keys", sub: "Write keys ingest events, read keys drive the dashboard." },
   settings: { title: "Settings", sub: "Point the dashboard at your Amplio query API." },
 };
@@ -131,6 +140,7 @@ export default function App() {
   const [authReady, setAuthReady] = useState(false);
   const [skipped, setSkipped] = useState<boolean>(authSkipped);
   const [user, setUser] = useState<AuthUser | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [projects, setProjects] = useState<UserProject[]>([]);
   const [activeProjectId, setActiveProjectId] = useState<string | null>(
     () => localStorage.getItem(ACTIVE_PROJECT_KEY),
@@ -176,12 +186,14 @@ export default function App() {
       try {
         const { user: u } = await fetchMe(settings.apiUrl, token);
         setUser(u);
-        // Loading projects is best-effort: a transient failure here must not
-        // invalidate an otherwise-valid session (Settings still works).
+        // Loading projects and admin status is best-effort: a transient failure
+        // here must not invalidate an otherwise-valid session.
         try {
           await loadProjects(token);
+          const { isAdmin: admin } = await adminMe(settings.apiUrl, token);
+          setIsAdmin(admin);
         } catch {
-          /* keep the session; projects can load later */
+          /* keep the session; these can load later */
         }
       } catch {
         // Only a failed /auth/me means the token is actually invalid.
@@ -199,6 +211,8 @@ export default function App() {
     if (token) {
       try {
         await loadProjects(token);
+        const { isAdmin: admin } = await adminMe(settings.apiUrl, token);
+        setIsAdmin(admin);
       } catch {
         /* projects load is best-effort; Settings still works as a fallback */
       }
@@ -212,7 +226,9 @@ export default function App() {
     setUser(null);
     setProjects([]);
     setActiveProjectId(null);
+    setIsAdmin(false);
     setSkipped(false);
+    setView("events");
   };
 
   const navigate = (key: View) => {
@@ -273,7 +289,7 @@ export default function App() {
           <div key={sec.section}>
             <div className="nav-section">{sec.section}</div>
             {sec.items
-              .filter((n) => n.key !== "team" || user)
+              .filter((n) => ((n.key !== "team" && n.key !== "account") || user) && (n.key !== "admin" || isAdmin))
               .map((n) => (
                 <button
                   key={n.key}
@@ -352,6 +368,28 @@ export default function App() {
                 }}
               />
             );
+          })()}
+        {view === "account" &&
+          (() => {
+            const token = getToken();
+            if (!user || !token) {
+              return (
+                <div className="card">
+                  <div className="empty-state">
+                    <div className="empty-glyph">🪪</div>
+                    <div className="empty-title">Account settings need an account</div>
+                    <div className="empty-hint">Sign in with an email account to manage your password.</div>
+                  </div>
+                </div>
+              );
+            }
+            return <AccountSettings apiUrl={settings.apiUrl} token={token} onDeleted={logout} />;
+          })()}
+        {view === "admin" &&
+          isAdmin &&
+          (() => {
+            const token = getToken();
+            return token ? <Admin apiUrl={settings.apiUrl} token={token} /> : null;
           })()}
         {view === "keys" && <Keys settings={settings} />}
         {view === "settings" && <Settings settings={settings} onSave={save} />}

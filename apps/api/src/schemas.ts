@@ -121,3 +121,12 @@ export const projectBody = z.object({
 export const planBody = z.object({
   plan: z.enum(["free", "pro", "scale"]),
 });
+
+export const passwordBody = z.object({
+  currentPassword: z.string().min(1).max(200),
+  newPassword: z.string().min(8, "at least 8 characters").max(200),
+});
+
+export const orgNameBody = z.object({
+  name: z.string().min(1).max(200),
+});

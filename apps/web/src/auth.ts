@@ -87,6 +87,13 @@ export function myProjects(apiUrl: string, token: string) {
   });
 }
 
+/** Whether the session user is an instance superadmin (AMPLIO_ADMIN_EMAILS). */
+export function adminMe(apiUrl: string, token: string) {
+  return authFetch<{ isAdmin: boolean }>(apiUrl, "/admin/me", {
+    headers: { authorization: `Bearer ${token}` },
+  });
+}
+
 // --- org / team management (session-token auth) ---
 export type Role = "owner" | "admin" | "member";
 export interface Member {
@@ -149,6 +156,9 @@ export const getUsage = (apiUrl: string, token: string, orgId: string) =>
   authFetch<Usage>(apiUrl, `/orgs/${orgId}/usage`, authHeader(token));
 export const setPlan = (apiUrl: string, token: string, orgId: string, plan: PlanId) =>
   authFetch<{ ok: true; plan: PlanId }>(apiUrl, `/orgs/${orgId}/plan`, jsonAuth(token, "POST", { plan }));
+
+export const renameOrg = (apiUrl: string, token: string, orgId: string, name: string) =>
+  authFetch<{ ok: true }>(apiUrl, `/orgs/${orgId}/name`, jsonAuth(token, "PATCH", { name }));
 
 export const createProject = (apiUrl: string, token: string, orgId: string, name: string) =>
   authFetch<{ project: { id: string; name: string } }>(apiUrl, `/orgs/${orgId}/projects`, jsonAuth(token, "POST", { name }));

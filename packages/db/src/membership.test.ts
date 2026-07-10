@@ -98,6 +98,29 @@ describe("SqliteStore project management", () => {
     await s.close();
   });
 
+  it("renames an org, and lists all orgs + user count for the admin console", async () => {
+    const s = new SqliteStore(":memory:");
+    const a = await seedOrgWithOwner(s, "a@x.com");
+    await seedOrgWithOwner(s, "b@x.com");
+    expect(await s.renameOrg(a.org.id, "Acme Renamed")).toBe(true);
+    const all = await s.listAllOrgs();
+    expect(all.length).toBeGreaterThanOrEqual(2);
+    const acme = all.find((o) => o.id === a.org.id);
+    expect(acme).toMatchObject({ name: "Acme Renamed", plan: "free", members: 1, projects: 1 });
+    expect(await s.countUsers()).toBe(2);
+    await s.close();
+  });
+
+  it("deleteUser removes the account and its memberships", async () => {
+    const s = new SqliteStore(":memory:");
+    const { org, user } = await seedOrgWithOwner(s);
+    expect(await s.deleteUser(user.id)).toBe(true);
+    expect(await s.getUser(user.id)).toBeNull();
+    expect(await s.getMemberRole(org.id, user.id)).toBeNull();
+    expect(await s.countUsers()).toBe(0);
+    await s.close();
+  });
+
   it("deleteProject with a foreign org id never touches the project's keys", async () => {
     const s = new SqliteStore(":memory:");
     const a = await seedOrgWithOwner(s, "a@x.com");
