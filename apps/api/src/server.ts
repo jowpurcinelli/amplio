@@ -492,24 +492,32 @@ export function buildApi(deps: ApiDeps): FastifyInstance {
     const sub = sessionSub(req, reply);
     if (!sub) return;
     const orgs = await s.listUserOrgs(sub);
+    // Decide every org's fate from counts snapshotted BEFORE any mutation. This
+    // matters because deleting the user's solo home org cascade-removes their
+    // user row (and thus their memberships in other orgs); if we re-queried
+    // counts mid-loop, a still-shared org could be misread as solo and wiped.
+    const plan: { orgId: string; action: "delete" | "leave" }[] = [];
     for (const o of orgs) {
-      if (o.role !== "owner") continue;
-      const owners = await s.countMembersWithRole(o.orgId, "owner");
+      if (o.role !== "owner") {
+        plan.push({ orgId: o.orgId, action: "leave" });
+        continue;
+      }
       const members = (await s.listMembers(o.orgId)).length;
-      if (owners <= 1 && members > 1) {
+      if (members <= 1) {
+        plan.push({ orgId: o.orgId, action: "delete" }); // only member: remove the org
+      } else if ((await s.countMembersWithRole(o.orgId, "owner")) <= 1) {
         return reply.status(409).send({
           error: `you are the sole owner of "${o.orgName}"; transfer ownership before deleting your account`,
         });
-      }
-    }
-    for (const o of orgs) {
-      const members = o.role === "owner" ? (await s.listMembers(o.orgId)).length : 2;
-      if (o.role === "owner" && members <= 1) {
-        await s.deleteOrg(o.orgId); // solo org: remove it entirely (cascades)
       } else {
-        await s.removeMember(o.orgId, sub);
+        plan.push({ orgId: o.orgId, action: "leave" }); // other owners remain
       }
     }
+    // Leave shared orgs first (while the user still exists), then delete solo
+    // orgs (which may cascade the user away), then remove the account. The plan
+    // is fixed, so a cascade cannot change any remaining decision.
+    for (const p of plan) if (p.action === "leave") await s.removeMember(p.orgId, sub);
+    for (const p of plan) if (p.action === "delete") await s.deleteOrg(p.orgId);
     await s.deleteUser(sub);
     reply.send({ ok: true });
   });

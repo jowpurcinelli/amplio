@@ -14,6 +14,11 @@
 
 set -euo pipefail
 
+# Every file we create holds or may hold secrets (deploy/.env and the temp files
+# set_env renames over it). Restrict new files to the owner so a stray temp or
+# the final env file is never world-readable.
+umask 077
+
 # --- Locate the repo regardless of where this is invoked from ----------------
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
@@ -84,6 +89,10 @@ else
     set_env "AMPLIO_DOMAIN" "$DOMAIN_ARG" "$ENV_FILE"
     log "Set AMPLIO_DOMAIN=$DOMAIN_ARG"
   fi
+
+  # set_env replaces the file via a temp-file rename, so re-assert owner-only
+  # mode on the final file (belt and suspenders alongside umask 077).
+  chmod 600 "$ENV_FILE"
 
   log "Wrote deploy/.env. Generated write/read API keys for 'default-project':"
   printf '    write: %s\n' "$WRITE_KEY"
