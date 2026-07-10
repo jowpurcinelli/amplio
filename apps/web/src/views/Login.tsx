@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Field } from "../components/Field.js";
+import { Icon } from "../components/Icon.js";
 import { login, signup, setToken, skipAuth, type AuthUser } from "../auth.js";
 
 /**
@@ -49,7 +50,9 @@ export function Login({
     <div className="auth-screen">
       <div className="card auth-card">
         <div className="brand" style={{ marginBottom: 2, paddingBottom: 6 }}>
-          <span className="brand-dot" />
+          <span className="brand-dot">
+            <Icon name="segmentation" size={15} strokeWidth={2.4} />
+          </span>
           Amplio
         </div>
         <p className="auth-tagline">Open-source product analytics you fully own.</p>

@@ -14,6 +14,7 @@ import {
 import { Login } from "./views/Login.js";
 import { Admin } from "./views/Admin.js";
 import { AccountSettings } from "./views/AccountSettings.js";
+import { Icon } from "./components/Icon.js";
 import { Segmentation } from "./views/Segmentation.js";
 import { Funnel } from "./views/Funnel.js";
 import { Retention } from "./views/Retention.js";
@@ -50,47 +51,47 @@ type View =
   | "keys"
   | "settings";
 
-const NAV_SECTIONS: { section: string; items: { key: View; label: string; glyph: string }[] }[] = [
+const NAV_SECTIONS: { section: string; items: { key: View; label: string; icon: string }[] }[] = [
   {
     section: "Overview",
     items: [
-      { key: "events", label: "Events", glyph: "📋" },
-      { key: "live", label: "Live", glyph: "🟢" },
+      { key: "events", label: "Events", icon: "events" },
+      { key: "live", label: "Live", icon: "live" },
     ],
   },
   {
     section: "Analyze",
     items: [
-      { key: "segmentation", label: "Segmentation", glyph: "📈" },
-      { key: "funnel", label: "Funnels", glyph: "🔻" },
-      { key: "retention", label: "Retention", glyph: "🔁" },
-      { key: "users", label: "Users", glyph: "👤" },
-      { key: "cohorts", label: "Cohorts", glyph: "🎯" },
-      { key: "replays", label: "Replays", glyph: "🎬" },
+      { key: "segmentation", label: "Segmentation", icon: "segmentation" },
+      { key: "funnel", label: "Funnels", icon: "funnel" },
+      { key: "retention", label: "Retention", icon: "retention" },
+      { key: "users", label: "Users", icon: "users" },
+      { key: "cohorts", label: "Cohorts", icon: "cohorts" },
+      { key: "replays", label: "Replays", icon: "replays" },
     ],
   },
   {
     section: "Experiment",
     items: [
-      { key: "flags", label: "Flags", glyph: "🚩" },
-      { key: "experiments", label: "Experiments", glyph: "🧪" },
+      { key: "flags", label: "Flags", icon: "flags" },
+      { key: "experiments", label: "Experiments", icon: "experiments" },
     ],
   },
   {
     section: "Saved",
     items: [
-      { key: "dashboards", label: "Dashboards", glyph: "📊" },
-      { key: "library", label: "Library", glyph: "📁" },
+      { key: "dashboards", label: "Dashboards", icon: "dashboards" },
+      { key: "library", label: "Library", icon: "library" },
     ],
   },
   {
     section: "Workspace",
     items: [
-      { key: "team", label: "Team", glyph: "👥" },
-      { key: "keys", label: "API keys", glyph: "🔑" },
-      { key: "account", label: "Account", glyph: "🪪" },
-      { key: "admin", label: "Admin", glyph: "🛡️" },
-      { key: "settings", label: "Settings", glyph: "⚙️" },
+      { key: "team", label: "Team", icon: "team" },
+      { key: "keys", label: "API keys", icon: "keys" },
+      { key: "account", label: "Account", icon: "account" },
+      { key: "admin", label: "Admin", icon: "admin" },
+      { key: "settings", label: "Settings", icon: "settings" },
     ],
   },
 ];
@@ -260,31 +261,17 @@ export default function App() {
     return <Login apiUrl={settings.apiUrl} onAuthed={onAuthed} onSkip={() => setSkipped(true)} />;
   }
 
+  const themeIcon = theme === "light" ? "sun" : theme === "dark" ? "moon" : "monitor";
+
   return (
     <div className="app">
       <aside className="sidebar">
         <div className="brand">
-          <span className="brand-dot" />
+          <span className="brand-dot">
+            <Icon name="segmentation" size={15} strokeWidth={2.4} />
+          </span>
           Amplio
         </div>
-        {user && projects.length > 0 && (
-          <div className="proj-switch">
-            <label>Project</label>
-            <select
-              value={activeProjectId ?? ""}
-              onChange={(e) => {
-                const p = projects.find((x) => x.id === e.target.value);
-                if (p) selectProject(p);
-              }}
-            >
-              {projects.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name}
-                </option>
-              ))}
-            </select>
-          </div>
-        )}
         {NAV_SECTIONS.map((sec) => (
           <div key={sec.section}>
             <div className="nav-section">{sec.section}</div>
@@ -296,38 +283,66 @@ export default function App() {
                   className={`nav-item${view === n.key ? " active" : ""}`}
                   onClick={() => navigate(n.key)}
                 >
-                  <span className="nav-glyph" aria-hidden>{n.glyph}</span>
+                  <span className="nav-glyph">
+                    <Icon name={n.icon} size={18} />
+                  </span>
                   {n.label}
                 </button>
               ))}
           </div>
         ))}
         <div className="nav-spacer" />
-        <button className="nav-item" onClick={cycleTheme}>
-          <span className="nav-glyph" aria-hidden>🎨</span>
-          Theme: {theme}
-        </button>
-        {user ? (
-          <button className="nav-item" onClick={logout} title={user.email}>
-            <span className="nav-glyph" aria-hidden>🚪</span>
-            Log out
-          </button>
-        ) : (
-          <button className="nav-item" onClick={logout}>
-            <span className="nav-glyph" aria-hidden>🔐</span>
-            Sign in
-          </button>
-        )}
         {user && <div className="sidebar-footer">Signed in as {user.email}</div>}
       </aside>
 
-      <main className="main">
-        <div className="page-head">
-          <h1 className="page-title">{TITLES[view].title}</h1>
-        </div>
-        <p className="page-sub">{TITLES[view].sub}</p>
+      <div className="workspace">
+        <header className="topbar">
+          <div className="topbar-title">{TITLES[view].title}</div>
+          <div className="topbar-actions">
+            {user && projects.length > 0 && (
+              <div className="switcher">
+                <select
+                  value={activeProjectId ?? ""}
+                  aria-label="Active project"
+                  onChange={(e) => {
+                    const p = projects.find((x) => x.id === e.target.value);
+                    if (p) selectProject(p);
+                  }}
+                >
+                  {projects.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+            <button className="icon-btn" onClick={cycleTheme} title={`Theme: ${theme}`} aria-label="Toggle theme">
+              <Icon name={themeIcon} size={17} />
+            </button>
+            {user ? (
+              <>
+                <button className="avatar" onClick={() => navigate("account")} title={user.email}>
+                  <span className="avatar-badge">{user.email.slice(0, 1).toUpperCase()}</span>
+                  <span className="avatar-email">{user.email}</span>
+                </button>
+                <button className="icon-btn" onClick={logout} title="Log out" aria-label="Log out">
+                  <Icon name="logout" size={17} />
+                </button>
+              </>
+            ) : (
+              <button className="btn secondary small" onClick={logout}>
+                <Icon name="login" size={15} />
+                Sign in
+              </button>
+            )}
+          </div>
+        </header>
 
-        {view === "events" && <Events settings={settings} onExplore={exploreEvent} />}
+        <main className="main">
+          <p className="page-sub view-head">{TITLES[view].sub}</p>
+
+          {view === "events" && <Events settings={settings} onExplore={exploreEvent} />}
         {view === "live" && <Live settings={settings} />}
         {view === "segmentation" && <Segmentation settings={settings} initial={initialFor("segmentation")} />}
         {view === "funnel" && <Funnel settings={settings} initial={initialFor("funnel")} />}
@@ -347,7 +362,7 @@ export default function App() {
               return (
                 <div className="card">
                   <div className="empty-state">
-                    <div className="empty-glyph">👥</div>
+                    <div className="empty-glyph"><Icon name="team" size={26} /></div>
                     <div className="empty-title">Team management needs an account</div>
                     <div className="empty-hint">
                       Sign in with an email account (not an API key) to manage members, roles, and projects.
@@ -376,7 +391,7 @@ export default function App() {
               return (
                 <div className="card">
                   <div className="empty-state">
-                    <div className="empty-glyph">🪪</div>
+                    <div className="empty-glyph"><Icon name="account" size={26} /></div>
                     <div className="empty-title">Account settings need an account</div>
                     <div className="empty-hint">Sign in with an email account to manage your password.</div>
                   </div>
@@ -393,7 +408,8 @@ export default function App() {
           })()}
         {view === "keys" && <Keys settings={settings} />}
         {view === "settings" && <Settings settings={settings} onSave={save} />}
-      </main>
+        </main>
+      </div>
     </div>
   );
 }

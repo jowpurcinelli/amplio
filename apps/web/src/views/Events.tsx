@@ -3,6 +3,7 @@ import type { Settings } from "../config.js";
 import { fetchEventNames, type EventName } from "../api.js";
 import { formatNumber } from "../lib/format.js";
 import { RowsSkeleton } from "../components/Skeleton.js";
+import { Icon } from "../components/Icon.js";
 
 export function Events({
   settings,
@@ -41,7 +42,7 @@ export function Events({
       {!events && !error && <RowsSkeleton rows={8} />}
       {events && events.length === 0 && (
         <div className="empty-state">
-          <div className="empty-glyph">📭</div>
+          <div className="empty-glyph"><Icon name="events" size={26} /></div>
           <div className="empty-title">No events yet</div>
           <div className="empty-hint">
             Send some with an SDK, or run <code>node scripts/seed-demo.mjs</code> to load a demo dataset.

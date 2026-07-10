@@ -10,6 +10,7 @@ import { segmentationSeries } from "../lib/charts.js";
 import { downloadCsv } from "../lib/csv.js";
 import { formatNumber, formatCompact } from "../lib/format.js";
 import { ChartSkeleton } from "../components/Skeleton.js";
+import { Icon } from "../components/Icon.js";
 
 export function Segmentation({
   settings,
@@ -153,7 +154,7 @@ export function Segmentation({
         {loading && <ChartSkeleton />}
         {!loading && !rows && !error && (
           <div className="empty-state">
-            <div className="empty-glyph">📈</div>
+            <div className="empty-glyph"><Icon name="segmentation" size={26} /></div>
             <div className="empty-title">Choose an event and run a query</div>
             <div className="empty-hint">Pick an event above, then hit Run to chart its volume or unique users over time.</div>
           </div>

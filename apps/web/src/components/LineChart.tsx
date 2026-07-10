@@ -50,14 +50,28 @@ export function LineChart({ labels, series, height = 300, format = formatCompact
     setHover(Math.max(0, Math.min(n - 1, Math.round(frac * (n - 1)))));
   };
 
+  const baseY = PAD.top + plotH;
+  // A soft gradient area under the line reads as modern and gives the value a
+  // sense of volume. Only for a single series, where overlapping fills would
+  // otherwise muddy a multi-line chart.
+  const areaFill = series.length === 1;
+
   return (
     <div ref={ref} style={{ position: "relative", width: "100%" }}>
       <svg width={width} height={height} role="img">
+        <defs>
+          {series.map((s, i) => (
+            <linearGradient key={i} id={`area-${i}`} x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor={s.color} stopOpacity={0.22} />
+              <stop offset="100%" stopColor={s.color} stopOpacity={0} />
+            </linearGradient>
+          ))}
+        </defs>
         {/* gridlines + y ticks */}
         {yTicks.map((t, i) => (
           <g key={i}>
             <line x1={PAD.left} x2={width - PAD.right} y1={y(t)} y2={y(t)} stroke="var(--grid)" strokeWidth={1} />
-            <text x={PAD.left - 8} y={y(t) + 4} textAnchor="end" fontSize={11} fill="var(--muted)">
+            <text x={PAD.left - 10} y={y(t) + 4} textAnchor="end" fontSize={11} fill="var(--muted)">
               {format(t)}
             </text>
           </g>
@@ -70,13 +84,19 @@ export function LineChart({ labels, series, height = 300, format = formatCompact
             </text>
           ) : null,
         )}
-        {/* series lines */}
-        {series.map((s) => (
+        {/* series areas + lines */}
+        {series.map((s, si) => (
           <g key={s.name}>
+            {areaFill && n > 1 && (
+              <path
+                fill={`url(#area-${si})`}
+                d={`M ${x(0)},${baseY} ${s.values.map((v, i) => `L ${x(i)},${y(v)}`).join(" ")} L ${x(n - 1)},${baseY} Z`}
+              />
+            )}
             <polyline
               fill="none"
               stroke={s.color}
-              strokeWidth={2}
+              strokeWidth={2.25}
               strokeLinejoin="round"
               strokeLinecap="round"
               points={s.values.map((v, i) => `${x(i)},${y(v)}`).join(" ")}
