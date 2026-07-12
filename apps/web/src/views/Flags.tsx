@@ -156,8 +156,8 @@ export function Flags({ settings }: { settings: Settings }) {
                     {f.variants.length > 0 ? f.variants.map((v) => `${v.key}:${v.weight}`).join(", ") : "—"}
                   </td>
                   <td>
-                    <button className="chip" onClick={() => remove(f.id)}>
-                      Delete <span>×</span>
+                    <button className="btn danger small" onClick={() => remove(f.id)}>
+                      Delete
                     </button>
                   </td>
                 </tr>

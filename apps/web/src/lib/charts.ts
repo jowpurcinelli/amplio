@@ -11,10 +11,13 @@ export function segmentationSeries(
   const buckets = Array.from(new Set(rows.map((r) => r.bucket))).sort();
   const labels = buckets.map((b) => bucketLabel(b, granularity));
   if (!grouped) {
+    // A single series is chrome, so it wears the brand accent. The validated
+    // multi-color palette is reserved for grouped breakdowns below, where
+    // colorblind-safe separation actually matters.
     const byBucket = new Map(rows.map((r) => [r.bucket, Number(r.value)]));
     return {
       labels,
-      series: [{ name: "value", color: SERIES_VARS[0]!, values: buckets.map((b) => byBucket.get(b) ?? 0) }],
+      series: [{ name: "value", color: "var(--accent)", values: buckets.map((b) => byBucket.get(b) ?? 0) }],
     };
   }
   const groups = Array.from(new Set(rows.map((r) => r.group_key ?? "(none)"))).slice(0, 8);

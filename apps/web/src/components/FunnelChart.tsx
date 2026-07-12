@@ -47,7 +47,7 @@ export function FunnelChart({ steps }: Props) {
                 style={{
                   width: `${Math.max(widthPct, 0.5)}%`,
                   height: "100%",
-                  background: "var(--seq-450)",
+                  background: "var(--accent)",
                   borderRadius: 6,
                   transition: "width 240ms ease",
                 }}

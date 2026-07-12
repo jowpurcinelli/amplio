@@ -123,7 +123,7 @@ export function Experiments({ settings }: { settings: Settings }) {
                         style={{
                           height: 10,
                           width: `${Math.max(d.rate * 220, 2)}px`,
-                          background: d.rate === best && data.length > 1 ? "var(--good)" : "var(--seq-450)",
+                          background: d.rate === best && data.length > 1 ? "var(--good)" : "var(--accent)",
                           borderRadius: 4,
                         }}
                       />

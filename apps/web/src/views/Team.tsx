@@ -220,7 +220,7 @@ export function Team({
                     width: `${Math.min(100, (usage.events / usage.limit) * 100)}%`,
                     height: "100%",
                     borderRadius: 6,
-                    background: usage.events > usage.limit ? "var(--series-6)" : "var(--seq-450)",
+                    background: usage.events > usage.limit ? "var(--series-6)" : "var(--accent)",
                   }}
                 />
               </div>

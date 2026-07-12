@@ -6,7 +6,7 @@ import { Field, EventSelect } from "../components/Field.js";
 import { LineChart } from "../components/LineChart.js";
 import { SaveBar } from "../components/SaveBar.js";
 import { EmptyState } from "../components/EmptyState.js";
-import { PRESETS, presetRange, SERIES_VARS } from "../lib/time.js";
+import { PRESETS, presetRange } from "../lib/time.js";
 import { formatNumber } from "../lib/format.js";
 import { downloadCsv } from "../lib/csv.js";
 
@@ -138,7 +138,7 @@ export function Retention({
             </div>
             <LineChart
               labels={labels}
-              series={[{ name: "retention", color: SERIES_VARS[0]!, values: pctValues }]}
+              series={[{ name: "retention", color: "var(--accent)", values: pctValues }]}
               format={(n) => `${Math.round(n)}%`}
               xLabel={(l) => l}
             />

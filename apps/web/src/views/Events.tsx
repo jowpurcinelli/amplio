@@ -80,7 +80,7 @@ export function Events({
                           height: 10,
                           width: `${(Number(e.volume) / max) * 260}px`,
                           minWidth: 2,
-                          background: "var(--seq-450)",
+                          background: "var(--accent)",
                           borderRadius: 4,
                         }}
                       />
