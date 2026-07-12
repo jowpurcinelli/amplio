@@ -15,6 +15,7 @@ import { Login } from "./views/Login.js";
 import { Admin } from "./views/Admin.js";
 import { AccountSettings } from "./views/AccountSettings.js";
 import { Icon } from "./components/Icon.js";
+import { CommandPalette, type Command } from "./components/CommandPalette.js";
 import { Segmentation } from "./views/Segmentation.js";
 import { Funnel } from "./views/Funnel.js";
 import { Retention } from "./views/Retention.js";
@@ -116,6 +117,8 @@ const TITLES: Record<View, { title: string; sub: string }> = {
   settings: { title: "Settings", sub: "Point the dashboard at your Amplio query API." },
 };
 
+const themeIconFor = (theme: string): string => (theme === "light" ? "sun" : theme === "dark" ? "moon" : "monitor");
+
 function useTheme(): [string, () => void] {
   const [theme, setTheme] = useState<string>(() => localStorage.getItem("amplio_theme") ?? "system");
   useEffect(() => {
@@ -142,6 +145,7 @@ export default function App() {
   const [skipped, setSkipped] = useState<boolean>(authSkipped);
   const [user, setUser] = useState<AuthUser | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [paletteOpen, setPaletteOpen] = useState(false);
   const [projects, setProjects] = useState<UserProject[]>([]);
   const [activeProjectId, setActiveProjectId] = useState<string | null>(
     () => localStorage.getItem(ACTIVE_PROJECT_KEY),
@@ -237,6 +241,46 @@ export default function App() {
     setView(key);
   };
 
+  // Cmd/Ctrl-K opens the command palette from anywhere.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setPaletteOpen((o) => !o);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
+  // Everything the palette can jump to or do: navigation + quick actions.
+  const commands: Command[] = [
+    ...NAV_SECTIONS.flatMap((sec) =>
+      sec.items
+        .filter((n) => ((n.key !== "team" && n.key !== "account") || user) && (n.key !== "admin" || isAdmin))
+        .map((n) => ({
+          id: `nav-${n.key}`,
+          label: `Go to ${n.label}`,
+          hint: sec.section,
+          icon: n.icon,
+          run: () => navigate(n.key),
+        })),
+    ),
+    { id: "act-theme", label: "Toggle theme", hint: theme, icon: themeIconFor(theme), run: cycleTheme },
+    ...(user && projects.length > 1
+      ? projects.map((p) => ({
+          id: `proj-${p.id}`,
+          label: `Switch to ${p.name}`,
+          hint: "Project",
+          icon: "dashboards",
+          run: () => selectProject(p),
+        }))
+      : []),
+    user
+      ? { id: "act-logout", label: "Log out", icon: "logout", run: logout }
+      : { id: "act-signin", label: "Sign in", icon: "login", run: logout },
+  ];
+
   const openChart = (chart: SavedChart) => {
     setLoaded({ kind: chart.kind, definition: chart.definition });
     setView(chart.kind);
@@ -261,7 +305,7 @@ export default function App() {
     return <Login apiUrl={settings.apiUrl} onAuthed={onAuthed} onSkip={() => setSkipped(true)} />;
   }
 
-  const themeIcon = theme === "light" ? "sun" : theme === "dark" ? "moon" : "monitor";
+  const themeIcon = themeIconFor(theme);
 
   return (
     <div className="app">
@@ -298,6 +342,11 @@ export default function App() {
         <header className="topbar">
           <div className="topbar-title">{TITLES[view].title}</div>
           <div className="topbar-actions">
+            <button className="cmdk-trigger" onClick={() => setPaletteOpen(true)} aria-label="Open command palette">
+              <Icon name="search" size={15} />
+              <span className="cmdk-trigger-label">Search</span>
+              <span className="kbd">⌘K</span>
+            </button>
             {user && projects.length > 0 && (
               <div className="switcher">
                 <select
@@ -409,6 +458,7 @@ export default function App() {
         {view === "settings" && <Settings settings={settings} onSave={save} />}
         </main>
       </div>
+      <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} commands={commands} />
     </div>
   );
 }

@@ -57,7 +57,7 @@ export function LineChart({ labels, series, height = 300, format = formatCompact
   const areaFill = series.length === 1;
 
   return (
-    <div ref={ref} style={{ position: "relative", width: "100%" }}>
+    <div ref={ref} className="chart-anim" style={{ position: "relative", width: "100%" }}>
       <svg width={width} height={height} role="img">
         <defs>
           {series.map((s, i) => (
