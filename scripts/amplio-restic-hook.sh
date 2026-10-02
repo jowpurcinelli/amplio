@@ -49,6 +49,7 @@ case "${1:-}" in
     printf '%s\n' "$container" "$snapshot" "${tables[@]}" > "$marker"
     for table in "${tables[@]}"; do
       ch "SHOW CREATE TABLE amplio.$table FORMAT TabSeparatedRaw" > "$state_dir/$snapshot/$table.sql"
+      ch "SELECT toString(uuid) FROM system.tables WHERE database='amplio' AND name='$table'" > "$state_dir/$snapshot/$table.uuid"
       ch "ALTER TABLE amplio.$table FREEZE WITH NAME '$snapshot'" >/dev/null
     done
     echo "Amplio table snapshots prepared (${#tables[@]} tables)"

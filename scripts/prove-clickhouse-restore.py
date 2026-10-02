@@ -66,6 +66,29 @@ try:
         aggregate = json.loads(run(args).stdout)
         assert int(aggregate['identified_users']) == 1 and int(aggregate['page_views']) == 1
         assert int(aggregate['last_received_at']) == 1000 and int(aggregate['observed_events']) == 1
+    if os.environ.get('AMPLIO_VERIFY_RESTIC') == '1':
+        with tempfile.TemporaryDirectory(prefix='nel369-restic-scratch-') as temporary:
+            restored = Path(temporary)
+            saved_state = restored / 'var/lib/nellia/amplio-backup'
+            shutil.copytree(hook_state, saved_state)
+            frozen = restored / ('var/lib/docker/volumes/qaapp_clickhouse-data/_data/shadow/' + snapshot_name)
+            frozen.mkdir(parents=True)
+            archive = subprocess.run(['docker', 'exec', source, 'tar', '-C', '/var/lib/clickhouse/shadow/' + snapshot_name, '-cf', '-', '.'], capture_output=True, check=True, timeout=30).stdout
+            with tarfile.open(fileobj=io.BytesIO(archive)) as extracted:
+                extracted.extractall(frozen, filter='data')
+            pg = 'nel369-restore-proof-pg-' + uuid4().hex[:10]
+            containers.append(pg)
+            run(['docker','run','--rm','-d','--name',pg,'--network','none','--tmpfs','/var/lib/postgresql/data','-e','POSTGRES_HOST_AUTH_METHOD=trust','-e','POSTGRES_USER=amplio','-e','POSTGRES_DB=amplio','postgres:16'])
+            for attempt in range(30):
+                if subprocess.run(['docker','exec',pg,'pg_isready','-h','127.0.0.1','-U','amplio'],capture_output=True).returncode == 0: break
+                time.sleep(1)
+            run(['docker','exec','-i',pg,'psql','-U','amplio','-d','amplio','-v','ON_ERROR_STOP=1'], input=(root/'deploy/postgres/init.sql').read_text())
+            dump = restored / 'metadata.dump'
+            dump.write_bytes(subprocess.run(['docker','exec',pg,'pg_dump','-U','amplio','-d','amplio','-Fc','--no-owner'],capture_output=True,check=True).stdout)
+            result = run(['python3',str(root/'scripts/verify-amplio-restic-restore.py'),'--restore-root',str(restored),'--metadata-dump',str(dump),'--app-uuid','qaapp'])
+            summary = json.loads(result.stdout)
+            assert summary['restoredTables']['events']['rows'] == 2
+            print('PASS: actual-snapshot verifier reproduced captured frozen parts and metadata dump')
     run(['bash', str(root / 'scripts/amplio-restic-hook.sh'), 'cleanup'], env=hook_env)
     assert not (hook_state / 'active-snapshot').exists()
     print('PASS: official ClickHouse 24.8 FREEZE restored exactly 2 QA events across 2 isolated projects; later source mutation excluded; no host ports or persistent volumes')
