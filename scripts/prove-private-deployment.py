@@ -5,7 +5,7 @@ from uuid import uuid4
 root = Path(__file__).resolve().parents[1]
 name = "nel369-pg-proof-" + uuid4().hex[:10]
 restore_name = name + "-restore"
-image = "postgres:16-alpine"
+image = os.environ.get("AMPLIO_POSTGRES_PROOF_IMAGE", "postgres:16-alpine")
 def run(args, **kw):
     return subprocess.run(args, check=True, capture_output=True, text=True, timeout=30, **kw)
 run(["docker", "image", "inspect", image])  # Never download an image for this proof.
@@ -21,7 +21,8 @@ try:
             time.sleep(1)
     else:
         raise RuntimeError("Ephemeral Postgres did not become ready")
-    run(["docker", "exec", "-i", name, "psql", "-v", "ON_ERROR_STOP=1", "-U", "amplio", "-d", "amplio"], input=(root / "deploy/postgres/init.sql").read_text())
+    if not os.environ.get("AMPLIO_POSTGRES_PROOF_IMAGE"):
+        run(["docker", "exec", "-i", name, "psql", "-v", "ON_ERROR_STOP=1", "-U", "amplio", "-d", "amplio"], input=(root / "deploy/postgres/init.sql").read_text())
     def scalar(sql):
         return run(["docker", "exec", name, "psql", "-At", "-U", "amplio", "-d", "amplio", "-c", sql]).stdout.strip()
     assert scalar("SELECT count(*) FROM api_keys") == "0", "Production schema must never seed development credentials"
