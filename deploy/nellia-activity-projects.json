@@ -1,0 +1,38 @@
+{
+  "organization": {
+    "id": "2c108caa-ba5e-44ed-9001-cd07408f46c0",
+    "name": "Nellia"
+  },
+  "projects": [
+    {
+      "id": "19d17246-18b0-55cb-89b9-9ba5c3a67d81",
+      "name": "qg-nellia",
+      "tenantId": "2c108caa-ba5e-44ed-9001-cd07408f46c0",
+      "surfaceId": "qg-nellia"
+    },
+    {
+      "id": "5f360d61-7355-5f97-bd5b-080d3c47f6e3",
+      "name": "hub-nellia",
+      "tenantId": "2c108caa-ba5e-44ed-9001-cd07408f46c0",
+      "surfaceId": "hub-nellia"
+    },
+    {
+      "id": "feb56868-f7c1-565c-be0a-59e30ca9f330",
+      "name": "nellia-site",
+      "tenantId": "2c108caa-ba5e-44ed-9001-cd07408f46c0",
+      "surfaceId": "nellia-site"
+    },
+    {
+      "id": "b40d0ca9-5f9f-5cea-83ef-2fd1efe40b34",
+      "name": "nelliaos-site",
+      "tenantId": "2c108caa-ba5e-44ed-9001-cd07408f46c0",
+      "surfaceId": "nelliaos-site"
+    },
+    {
+      "id": "73b5f876-aaea-5849-bea6-abdb62f339f4",
+      "name": "gudi-site",
+      "tenantId": "2c108caa-ba5e-44ed-9001-cd07408f46c0",
+      "surfaceId": "gudi-site"
+    }
+  ]
+}
