@@ -4,7 +4,7 @@ name: amplio-private
 services:
   amplio-api:
     build:
-      context: ..
+      context: .
       dockerfile: apps/api/Dockerfile
     restart: unless-stopped
     environment:
@@ -28,7 +28,7 @@ services:
       retries: 12
   amplio-ingest:
     build:
-      context: ..
+      context: .
       dockerfile: apps/ingest/Dockerfile
     restart: unless-stopped
     environment:
@@ -73,7 +73,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?required}
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./postgres/init.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+      - ./deploy/postgres/init.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
     networks: [analytics]
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U amplio -d amplio"]

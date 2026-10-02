@@ -4,7 +4,7 @@ Checked 2026-10-02. Amplio is the existing local analytics product, not a new ev
 
 ## Concrete target
 
-Deploy reviewed git using `deploy/docker-compose.coolify.yml` on Netcup through Coolify. Set `AMPLIO_QG_NETWORK=tmdpxfyneuolmwn5gzj4aybc`, the verified QG network. No host ports, public domain, Caddy or proxy labels are included. Databases stay on the internal analytics network. API and ingest are reachable by QG on its Docker network at `http://amplio-api:8788` and `http://amplio-ingest:8787` respectively. The activity query path is `/query/activity`; ingestion is `/2/httpapi`.
+Deploy reviewed git using `deploy/docker-compose.coolify.yml` on Netcup through Coolify, with the checkout root as Compose project directory. The build context is `.` and the schema mount starts with `./deploy/`, matching Coolify's `--project-directory <checkout-root>` behavior. Set `AMPLIO_QG_NETWORK=tmdpxfyneuolmwn5gzj4aybc`, the verified QG network. No host ports, public domain, Caddy or proxy labels are included. Databases stay on the internal analytics network. API and ingest are reachable by QG on its Docker network at `http://amplio-api:8788` and `http://amplio-ingest:8787` respectively. The activity query path is `/query/activity`; ingestion is `/2/httpapi`.
 
 Required Coolify secrets are `CLICKHOUSE_PASSWORD`, `POSTGRES_PASSWORD` and `SESSION_SECRET`, each freshly generated, unique and at least 32 random bytes. Hex values keep the database URL unambiguous. They do not exist as usable Amplio production configuration in the local checkout. No credential value belongs in git, screenshots, chat, or command output.
 
