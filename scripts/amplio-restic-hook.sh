@@ -11,6 +11,23 @@ state_dir="${AMPLIO_BACKUP_STATE_DIR:-/var/lib/nellia/amplio-backup}"
 mkdir -p "$state_dir"
 chmod 700 "$state_dir"
 marker="$state_dir/active-snapshot"
+resolve_container() {
+  if [ -n "${AMPLIO_APP_UUID:-}" ]; then
+    [[ "$AMPLIO_APP_UUID" =~ ^[a-zA-Z0-9]+$ ]] || { echo 'Invalid Amplio application selector' >&2; return 1; }
+    local candidate candidate_image
+    local candidates=()
+    while IFS= read -r candidate; do
+      [ -n "$candidate" ] || continue
+      candidate_image="$(docker inspect -f '{{.Config.Image}}' "$candidate")"
+      if [[ "$candidate_image" == clickhouse/clickhouse-server:24.8* ]]; then candidates+=("$candidate"); fi
+    done < <(docker ps --filter "name=$AMPLIO_APP_UUID" --filter status=running --format '{{.Names}}')
+    [ "${#candidates[@]}" -eq 1 ] || { echo 'Expected exactly one running Amplio ClickHouse container' >&2; return 1; }
+    container="${candidates[0]}"
+  else
+    container="${AMPLIO_CLICKHOUSE_CONTAINER:?set Amplio app UUID or exact QA ClickHouse container}"
+  fi
+  [[ "$container" =~ ^[a-zA-Z0-9][a-zA-Z0-9_.-]+$ ]] || return 1
+}
 ch() {
   docker exec "$container" sh -c 'exec clickhouse-client --user default --password "$CLICKHOUSE_PASSWORD" --query "$1"' sh "$1"
 }
@@ -37,7 +54,7 @@ case "${1:-}" in
   before)
     # Systemd serializes the existing backup job. Recover an interrupted old hook.
     cleanup
-    container="${AMPLIO_CLICKHOUSE_CONTAINER:?set exact ClickHouse runtime container}"
+    resolve_container
     [[ "$container" =~ ^[a-zA-Z0-9][a-zA-Z0-9_.-]+$ ]] || exit 1
     image="$(docker inspect -f '{{.Config.Image}}' "$container")"
     [[ "$image" == clickhouse/clickhouse-server:24.8* ]] || { echo 'Unexpected ClickHouse image' >&2; exit 1; }

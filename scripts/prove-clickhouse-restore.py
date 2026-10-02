@@ -5,7 +5,7 @@ from uuid import uuid4
 root = Path(__file__).resolve().parents[1]
 image = 'clickhouse/clickhouse-server:24.8'
 name = 'nel369-ch-restore-' + uuid4().hex[:10]
-containers = [name + '-source', name + '-target']
+containers = [name + '-source', 'nel369-ch-target-' + uuid4().hex[:10]]
 hook_state = Path(tempfile.mkdtemp(prefix='nel369-hook-state-'))
 def run(args, **kw):
     result = subprocess.run(args, capture_output=True, text=True, timeout=30, **kw)
@@ -31,7 +31,7 @@ try:
     ddl = re.search(r'CREATE TABLE IF NOT EXISTS \$\{database\}\.events[\s\S]*?SETTINGS index_granularity = 8192', code).group().replace('${database}.events', 'amplio.events')
     query(source, 'CREATE DATABASE amplio; ' + ddl)
     query(source, "INSERT INTO amplio.events(project_id,event_type,user_id,time_ms,server_received_time_ms) VALUES ('qa-a','page_view','qa-user-a',1000,1000),('qa-b','page_view','qa-user-b',2000,2000)")
-    hook_env = dict(os.environ, AMPLIO_CLICKHOUSE_CONTAINER=source, AMPLIO_BACKUP_STATE_DIR=str(hook_state))
+    hook_env = dict(os.environ, AMPLIO_APP_UUID=name.split("-")[-1], AMPLIO_BACKUP_STATE_DIR=str(hook_state))
     run(['bash', str(root / 'scripts/amplio-restic-hook.sh'), 'before'], env=hook_env)
     snapshot_name = (hook_state / 'active-snapshot').read_text().splitlines()[1]
     saved_ddl = (hook_state / snapshot_name / 'events.sql').read_text()
