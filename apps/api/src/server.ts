@@ -11,6 +11,7 @@ import {
   buildUserSummary,
   buildLiveEvents,
   buildStats,
+  buildActivity,
   buildExperiment,
   buildReplayList,
   buildReplayEvents,
@@ -20,7 +21,7 @@ import {
 import { makeStore, hashPassword, verifyPassword, signToken, verifyToken, PLANS, DEFAULT_PLAN, isPlanId, planLimit, type Store } from "@amplio/db";
 import type { ApiConfig } from "./config.js";
 import { randomBytes } from "node:crypto";
-import { funnelBody, retentionBody, segmentationBody, userBody, experimentBody, chartBody, dashboardBody, cohortBody, keyBody, flagBody, signupBody, loginBody, inviteBody, memberRoleBody, acceptInviteBody, projectBody, planBody, passwordBody, orgNameBody } from "./schemas.js";
+import { activityBody, funnelBody, retentionBody, segmentationBody, userBody, experimentBody, chartBody, dashboardBody, cohortBody, keyBody, flagBody, signupBody, loginBody, inviteBody, memberRoleBody, acceptInviteBody, projectBody, planBody, passwordBody, orgNameBody } from "./schemas.js";
 
 export interface ApiDeps {
   cfg: ApiConfig;
@@ -623,6 +624,29 @@ export function buildApi(deps: ApiDeps): FastifyInstance {
     const rows = (await rs.json()) as Array<{ total: string; last_hour: string }>;
     const row = rows[0] ?? { total: "0", last_hour: "0" };
     reply.send({ total: Number(row.total), lastHour: Number(row.last_hour) });
+  });
+
+  // Aggregate read: never returns user ids, device ids, or event properties.
+  app.post("/query/activity", async (req, reply) => {
+    const projectId = await auth(req, reply);
+    if (!projectId) return;
+    const parsed = activityBody.safeParse(req.body);
+    if (!parsed.success) return reply.status(400).send({ error: parsed.error.issues[0]?.message });
+    const compiled = buildActivity({ projectId, ...parsed.data });
+    const rs = await clickhouse.query({ query: compiled.sql, query_params: compiled.params, format: "JSONEachRow" });
+    type Row = Record<string, string | number>;
+    const row = ((await rs.json()) as Row[])[0] ?? {};
+    const n = (key: string): number => Number(row[key] ?? 0);
+    reply.send({ projectId, summary: {
+      identifiedUsers: n("identified_users"),
+      recentIdentifiedUsers: n("recent_identified_users"),
+      pageViews: n("page_views"),
+      anonymousVisitors: n("anonymous_visitors"),
+      anonymousVisits: n("anonymous_pages_without_session") > 0 ? null : n("anonymous_visits"),
+      lastEventAt: n("observed_events") > 0 ? n("last_event_at") : null,
+      lastReceivedAt: n("observed_events") > 0 ? n("last_received_at") : null,
+      onlineUsers: null,
+    } });
   });
 
   // --- session replay ---

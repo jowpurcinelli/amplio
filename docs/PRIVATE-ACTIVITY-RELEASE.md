@@ -1,0 +1,33 @@
+# Private activity release, NEL-369
+
+Checked 2026-10-02. Amplio is the existing local analytics product, not a new event pipeline. The Netcup production container inventory currently has no Amplio or ClickHouse container. Local desktop SQLite contains one `dev-project` and two keys; local ClickHouse metadata contains three rows in July 5 parts. Its HTTP API is offline. That evidence provides no verified QG, GudiSystem, Hub or site usage coverage and is not imported as real usage.
+
+## Concrete target
+
+Deploy reviewed git using `deploy/docker-compose.coolify.yml` on Netcup through Coolify. Set `AMPLIO_QG_NETWORK=tmdpxfyneuolmwn5gzj4aybc`, the verified QG network. No host ports, public domain, Caddy or proxy labels are included. Databases stay on the internal analytics network. API and ingest are reachable by QG on its Docker network at `http://amplio-api:8788` and `http://amplio-ingest:8787` respectively. The activity query path is `/query/activity`; ingestion is `/2/httpapi`.
+
+Required Coolify secrets are `CLICKHOUSE_PASSWORD`, `POSTGRES_PASSWORD` and `SESSION_SECRET`, each freshly generated, unique and at least 32 random bytes. Hex values keep the database URL unambiguous. They do not exist as usable Amplio production configuration in the local checkout. No credential value belongs in git, screenshots, chat, or command output.
+
+The reviewed initial manifest `deploy/qg-nellia-project.json` binds Nellia tenant `2c108caa-ba5e-44ed-9001-cd07408f46c0` to project `19d17246-18b0-55cb-89b9-9ba5c3a67d81`, named `qg-nellia`. The tenant identity was supplied by the coordinating agent from the live QG row. The QG owner/membership and approved source grant must be read back before enabling collection. No site project or browser tracker is activated by this manifest.
+
+## Provisioning and secrets
+
+Apply `deploy/postgres/init.sql` to the fresh metadata database. It contains schema only: demo credentials were extracted into `seed.dev.sql`, mounted only by the development compose. Existing installations using the legacy production compose must separately revoke any seeded development keys. The legacy `deploy.sh` generated environment key maps are ignored whenever a metadata store is configured; do not use them as production source credentials.
+
+Run `scripts/provision-activity-projects.mjs <reviewed-manifest> <new-private-output>` with `DATABASE_URL` injected privately. The API image includes the script at `/app/scripts/provision-activity-projects.mjs`. Supply the manifest as a reviewed temporary mounted/copied file. Choose credential output outside the checkout, such as a private runtime directory; the command rejects checkout paths. It creates one organization per manifest tenant, explicit project IDs, and project read/write keys in a transaction. Retry reuses matching credentials. Additional projects can be supplied with their explicit IDs in a later manifest for that tenant. Conflicting names/owners, mixed tenants, duplicate scopes and existing output paths fail. Output is mode 0600 and keys never print to stdout. Transfer the read and write values privately into QG Coolify secrets `AMPLIO_QG_NELLIA_READ_KEY` and `AMPLIO_QG_NELLIA_WRITE_KEY`; securely remove the transfer file after verified readback.
+
+The existing Amplio read key also permits administrative project APIs. Keep it exclusively on the QG backend and keep Amplio API private; never expose it to browser code. The QG endpoint performs tenant authorization and only returns aggregate response fields. Provisioning does not grant QG membership or cross-tenant access.
+
+## Activation and acceptance
+
+After healthy database initialization, provision the manifest and verify both keys resolve only to the named project. Configure the QG read source with the tenant, dedicated project, API base and read-key environment reference. Configure its server collection bridge with the same tenant/project, ingest base, write-key environment reference, `enabled:true`, `dedicatedProject:true` and a separate identity HMAC secret of at least 32 bytes. Keep the write key on the backend. Emit only the approved minimal authenticated QG event schema; no historical demo import, message content, raw URLs, replay or keystrokes.
+
+Read back configuration without printing credentials. Confirm authorized Nellia QG interaction produces a real page event and aggregates count it; the initial zero before a real interaction is only zero observed events. Confirm another tenant receives no source/event data and unknown keys fail. Verify QG shows last signal, window, collection coverage and failures honestly. Public site visits, GudiSystem and other Hub tenants remain uncovered until their own reviewed dedicated project and actual instrumentation are connected.
+
+Take an empty-runtime baseline and include both metadata and ClickHouse volumes in the existing server backup regime before claiming durable acceptance. Retention is inherited as unlimited until a separately approved policy is configured. Rollback disables QG collection first, removes the source grant/env mapping, then rolls the application git revision back; retain database volumes and event evidence. Do not delete volumes during rollback.
+
+## Verification evidence
+
+`python3 scripts/prove-private-deployment.py` uses an already-present `postgres:16-alpine` image, a temporary container, tmpfs data and a random loopback port, then removes the container. It verified schema without demo keys, two dedicated projects, owner-only output, no key stdout, idempotent retry and transaction rollback on failed output creation. Compose configuration validated with placeholder secrets. API and ingest TypeScript builds passed. The real ClickHouse proof and HTTP isolation tests are documented in `ACTIVITY-API.md`. Both API and ingest Docker image builds passed locally. The API Dockerfile previously omitted schema dependencies from its filtered install; this release explicitly installs the schema package before compiling it. Local images are ARM development evidence; Coolify must build the reviewed revision for Netcup architecture.
+
+Trade-offs: this installs a portable private runtime with fresh production scopes rather than importing unproven development events. It adds two database volumes to backup operations. Compose uses the established ClickHouse 24.8 and Postgres 16 major tags; exact image digests should be captured at release. The exact aggregate history scan and legacy read-key privileges remain the documented limitations. No public ingress or website consent policy is added by this release.

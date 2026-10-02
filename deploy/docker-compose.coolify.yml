@@ -1,0 +1,91 @@
+# Private internal analytics. No host ports and no public proxy labels.
+# Deploy from the reviewed git revision with Coolify. Provision projects separately.
+name: amplio-private
+services:
+  amplio-api:
+    build:
+      context: ..
+      dockerfile: apps/api/Dockerfile
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      API_PORT: 8788
+      CLICKHOUSE_URL: http://clickhouse:8123
+      CLICKHOUSE_DATABASE: amplio
+      CLICKHOUSE_USER: default
+      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD:?required}
+      DATABASE_URL: postgres://amplio:${POSTGRES_PASSWORD:?required}@postgres:5432/amplio
+      SESSION_SECRET: ${SESSION_SECRET:?required}
+    expose: ["8788"]
+    networks: [analytics, qg]
+    depends_on:
+      clickhouse: {condition: service_healthy}
+      postgres: {condition: service_healthy}
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8788/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 3s
+      retries: 12
+  amplio-ingest:
+    build:
+      context: ..
+      dockerfile: apps/ingest/Dockerfile
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 8787
+      CLICKHOUSE_URL: http://clickhouse:8123
+      CLICKHOUSE_DATABASE: amplio
+      CLICKHOUSE_USER: default
+      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD:?required}
+      DATABASE_URL: postgres://amplio:${POSTGRES_PASSWORD:?required}@postgres:5432/amplio
+    expose: ["8787"]
+    networks: [analytics, qg]
+    depends_on:
+      clickhouse: {condition: service_healthy}
+      postgres: {condition: service_healthy}
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8787/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 3s
+      retries: 12
+  clickhouse:
+    image: clickhouse/clickhouse-server:24.8
+    restart: unless-stopped
+    environment:
+      CLICKHOUSE_DB: amplio
+      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD:?required}
+    ulimits:
+      nofile: {soft: 262144, hard: 262144}
+    volumes: ["clickhouse_data:/var/lib/clickhouse"]
+    networks: [analytics]
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8123/ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+  postgres:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: amplio
+      POSTGRES_USER: amplio
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?required}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./postgres/init.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+    networks: [analytics]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U amplio -d amplio"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+networks:
+  analytics:
+    internal: true
+  qg:
+    external: true
+    name: ${AMPLIO_QG_NETWORK:?required existing QG network}
+volumes:
+  clickhouse_data:
+  postgres_data:

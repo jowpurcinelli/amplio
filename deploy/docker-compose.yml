@@ -33,7 +33,8 @@ services:
       POSTGRES_PASSWORD: amplio
     volumes:
       - ./data/postgres:/var/lib/postgresql/data
-      - ./postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+      - ./postgres/init.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+      - ./postgres/seed.dev.sql:/docker-entrypoint-initdb.d/02-development-seed.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U amplio -d amplio"]
       interval: 5s

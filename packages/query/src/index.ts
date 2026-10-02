@@ -9,3 +9,4 @@ export { buildProjectUsage } from "./usage.js";
 export { buildExperiment } from "./experiment.js";
 export { buildReplayList, buildReplayEvents } from "./replay.js";
 export { Params, ACTOR } from "./sql.js";
+export { buildActivity, type ActivityQuery } from "./activity.js";

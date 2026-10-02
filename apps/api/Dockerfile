@@ -8,7 +8,7 @@ COPY packages/schema/package.json packages/schema/
 COPY packages/query/package.json packages/query/
 COPY packages/db/package.json packages/db/
 COPY apps/api/package.json apps/api/
-RUN pnpm install --frozen-lockfile --filter @amplio/api...
+RUN pnpm install --frozen-lockfile --filter @amplio/api... --filter @amplio/schema
 
 COPY packages/schema packages/schema
 COPY packages/query packages/query
@@ -23,5 +23,6 @@ FROM node:22-slim AS runtime
 ENV NODE_ENV=production
 WORKDIR /app
 COPY --from=build /app /app
+COPY scripts/provision-activity-projects.mjs /app/scripts/provision-activity-projects.mjs
 EXPOSE 8788
 CMD ["node", "apps/api/dist/index.js"]

@@ -1,0 +1,14 @@
+{
+  "organization": {
+    "id": "2c108caa-ba5e-44ed-9001-cd07408f46c0",
+    "name": "Nellia"
+  },
+  "projects": [
+    {
+      "id": "19d17246-18b0-55cb-89b9-9ba5c3a67d81",
+      "name": "qg-nellia",
+      "tenantId": "2c108caa-ba5e-44ed-9001-cd07408f46c0",
+      "surfaceId": "qg-nellia"
+    }
+  ]
+}

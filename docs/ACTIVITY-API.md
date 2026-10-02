@@ -1,0 +1,19 @@
+# Project activity aggregate
+
+`POST /query/activity` authenticates with a Bearer read key. The server resolves the project from that key; request project IDs and additional fields are rejected. One project must represent one authorized surface and tenant. This endpoint does not enforce a tenant property inside a shared project.
+
+Request: `{ "range": { "from": 1000, "to": 2000 }, "recentFrom": 1500, "pageViewEvent": "page_view" }`. All times are epoch milliseconds. The half-open event-time window must be positive, at most 31 days, with `recentFrom` inside it. The upper boundary allows at most 60 seconds of future clock tolerance. `pageViewEvent` defaults to `page_view` and has a 128-character limit.
+
+Response: `{ "projectId": "resolved-project", "summary": { "identifiedUsers": 0, "recentIdentifiedUsers": 0, "pageViews": 0, "anonymousVisitors": 0, "anonymousVisits": 0, "lastEventAt": null, "lastReceivedAt": null, "onlineUsers": null } }`.
+
+Identified users are distinct nonempty user IDs across all events in the window. Recent identified users use the same event clock starting at `recentFrom`. Page views count only the configured event. Anonymous visitors count nonempty device IDs on anonymous page events. Anonymous visits count distinct device/session tuples on those events with positive session IDs. If any anonymous page event lacks a valid device/session tuple, visits are null because coverage is incomplete. SDK sessions can span multiple page views and are not evidence of presence.
+
+Last event and receive signals cover project events before `to`, including older events outside the requested window. Both are null without observed events. A last receive timestamp can be newer than event time because of offline upload or backfill. Online users remain null: no heartbeat is available. This response exposes no identities, event payloads, or properties. An empty result is zero observed activity, not proof that collection is installed or healthy; the integrating service must show independently configured coverage and failures.
+
+Trade-offs: one exact ClickHouse aggregate scans project history before the upper boundary to preserve last-signal evidence. Exact distinct sets cost memory for large projects; the 31-day counting window bounds the counting workload but not the historical signal scan. Projects are the authorization boundary; shared multi-tenant projects require a separately reviewed scoped contract. No collection, consent, identity stitching, retention policy, or deployment is changed by this read endpoint.
+
+## Real SQL verification
+
+`node scripts/prove-activity-clickhouse.mjs` runs bounded standalone `clickhouse local` processes, each in a new scratch path, using the exact event DDL extracted from ingest. It requires explicit `CLICKHOUSE_BINARY` (an existing binary) and `CLICKHOUSE_PROOF_ROOT` (scratch directory) environment variables and a built query package. It installs nothing, starts no daemon, reads no existing analytics database, and retains isolated scratch evidence.
+
+Verified on 2026-10-02 with ClickHouse local 26.7.1.524: distinct identified users across different events, repeated page views in one anonymous session, missing session coverage, two-project isolation, absent project, hostile bound project/event strings, the exclusive upper event-time boundary, and an old event arriving recently. Project A yielded identified users 2, recent identified users 2, page views 5, anonymous visitors 2, valid anonymous sessions 1, and one page without a valid session. Project B independently yielded one identified user and one page view. The old backfill affected the receive signal while staying out of the requested activity window. Fastify tests separately verify response null mapping, rejected credentials/project spoofing and absence of raw payloads. This is local execution evidence, not production installation or live collection proof.
