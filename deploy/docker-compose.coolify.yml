@@ -12,17 +12,17 @@ services:
     environment:
       NODE_ENV: production
       API_PORT: 8788
-      CLICKHOUSE_URL: http://clickhouse:8123
+      CLICKHOUSE_URL: http://amplio-clickhouse:8123
       CLICKHOUSE_DATABASE: amplio
       CLICKHOUSE_USER: default
       CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD:?required}
-      DATABASE_URL: postgres://amplio:${POSTGRES_PASSWORD:?required}@postgres:5432/amplio
+      DATABASE_URL: postgres://amplio:${POSTGRES_PASSWORD:?required}@amplio-postgres:5432/amplio
       SESSION_SECRET: ${SESSION_SECRET:?required}
     expose: ["8788"]
     networks: [analytics, qg]
     depends_on:
-      clickhouse: {condition: service_healthy}
-      postgres: {condition: service_healthy}
+      amplio-clickhouse: {condition: service_healthy}
+      amplio-postgres: {condition: service_healthy}
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8788/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
       interval: 10s
@@ -38,22 +38,22 @@ services:
     environment:
       NODE_ENV: production
       PORT: 8787
-      CLICKHOUSE_URL: http://clickhouse:8123
+      CLICKHOUSE_URL: http://amplio-clickhouse:8123
       CLICKHOUSE_DATABASE: amplio
       CLICKHOUSE_USER: default
       CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD:?required}
-      DATABASE_URL: postgres://amplio:${POSTGRES_PASSWORD:?required}@postgres:5432/amplio
+      DATABASE_URL: postgres://amplio:${POSTGRES_PASSWORD:?required}@amplio-postgres:5432/amplio
     expose: ["8787"]
     networks: [analytics, qg]
     depends_on:
-      clickhouse: {condition: service_healthy}
-      postgres: {condition: service_healthy}
+      amplio-clickhouse: {condition: service_healthy}
+      amplio-postgres: {condition: service_healthy}
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8787/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
       interval: 10s
       timeout: 3s
       retries: 12
-  clickhouse:
+  amplio-clickhouse:
     image: clickhouse/clickhouse-server:24.8
     restart: unless-stopped
     labels:
@@ -70,8 +70,10 @@ services:
       interval: 5s
       timeout: 3s
       retries: 30
-  postgres:
-    image: postgres:16
+  amplio-postgres:
+    build:
+      context: .
+      dockerfile: deploy/postgres/Dockerfile
     restart: unless-stopped
     labels:
       traefik.enable: "false"
@@ -81,7 +83,6 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?required}
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./deploy/postgres/init.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
     networks: [analytics]
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U amplio -d amplio"]
@@ -93,7 +94,7 @@ networks:
     internal: true
   qg:
     external: true
-    name: ${AMPLIO_QG_NETWORK:?required existing QG network}
+    name: coolify
 volumes:
   clickhouse_data:
   postgres_data:
