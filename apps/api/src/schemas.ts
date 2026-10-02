@@ -130,3 +130,21 @@ export const passwordBody = z.object({
 export const orgNameBody = z.object({
   name: z.string().min(1).max(200),
 });
+
+/** Bounded event-time window for an aggregate project activity read. */
+export const activityBody = z.object({
+  range: timeRange,
+  recentFrom: z.number().int().nonnegative().safe(),
+  pageViewEvent: z.string().min(1).max(128).default("page_view"),
+}).strict().superRefine((body, ctx) => {
+  const { from, to } = body.range;
+  if (!Number.isSafeInteger(from) || !Number.isSafeInteger(to) || to <= from || to - from > 31 * 86_400_000) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: "range must be positive and at most 31 days" });
+  }
+  if (body.recentFrom < from || body.recentFrom >= to) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: "recentFrom must be inside range" });
+  }
+  if (to > Date.now() + 60_000) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: "future range exceeds clock tolerance" });
+  }
+});
