@@ -1,0 +1,20 @@
+{
+  "organization": {
+    "id": "2c108caa-ba5e-44ed-9001-cd07408f46c0",
+    "name": "Nellia"
+  },
+  "projects": [
+    {
+      "id": "feb56868-f7c1-565c-be0a-59e30ca9f330",
+      "name": "nellia-site",
+      "tenantId": "2c108caa-ba5e-44ed-9001-cd07408f46c0",
+      "surfaceId": "nellia-site"
+    },
+    {
+      "id": "b40d0ca9-5f9f-5cea-83ef-2fd1efe40b34",
+      "name": "nelliaos-site",
+      "tenantId": "2c108caa-ba5e-44ed-9001-cd07408f46c0",
+      "surfaceId": "nelliaos-site"
+    }
+  ]
+}

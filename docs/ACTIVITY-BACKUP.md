@@ -1,0 +1,23 @@
+# Amplio durability with the existing nightly backup
+
+The verified Netcup `nellia-backup` script already dumps every database and globals for Postgres containers and backs up named volumes except Postgres/Redis data directories. Amplio metadata therefore fits the existing dump/restore mechanism. Its ClickHouse named volume is included automatically. A raw copy of a live ClickHouse volume alone is insufficient evidence of a consistent restore.
+
+The scoped `scripts/amplio-restic-hook.sh` prepares table-consistent ClickHouse `FREEZE` snapshots before the existing backup job. Frozen part files remain hardlinked under the ClickHouse volume's `shadow/<snapshot>/store/...`, protected from subsequent merges and writes. Table DDL is captured under `/var/lib/nellia/amplio-backup/<snapshot>/`, a host path already included by the existing backup script. No credential value is written into that state. The snapshot stays present throughout Postgres dumps, restic upload, retention and check. Cleanup uses `UNFREEZE` afterwards. This adds no timer or daemon and does not replace the backup's other database or host-file work.
+
+## Reviewed integration
+
+Install the hook from the reviewed git revision as `/usr/local/bin/amplio-restic-hook` with root ownership and mode 0750. Create `/etc/nellia/amplio-backup.env`, root-owned mode 0600, containing only `AMPLIO_CLICKHOUSE_CONTAINER=<exact healthy runtime container>` and `AMPLIO_BACKUP_STATE_DIR=/var/lib/nellia/amplio-backup`. The hook gets its database password inside the selected container, without printing it. It requires the official ClickHouse 24.8 image, selects only `events` and `replay_events`, validates state names and releases an interrupted prior snapshot before starting a new one.
+
+Install `deploy/backup/nellia-backup-amplio.conf` as `/etc/systemd/system/nellia-backup.service.d/amplio.conf`, then reload systemd. The exact diff adds `EnvironmentFile`, `ExecStartPre` and `ExecStopPost` to the existing service. It creates no second schedule. `ExecStopPost` releases snapshots even when a backup fails; the failed backup must still be reported as failed. A freeze failure also fails the backup run rather than claiming consistent ClickHouse coverage. Verify a bounded reviewed backup run and its restic snapshot contains both the Amplio database dump and frozen part/schema paths before recording production durability. The read-only timer inspection alone is not that proof.
+
+## Restore protocol
+
+Use a separate scratch ClickHouse 24.8 instance with no public ports and a separate empty data directory. Create the `amplio` database, replay each captured table DDL, then determine each new table's data path from `system.tables`. Restore the frozen table's part directories into that table's `detached` directory, preserving their contents and setting ClickHouse ownership. Attach each recorded partition ID. Restore only the frozen parts, not the concurrently copied live table directory. Recompute aggregate counts/timestamps and source-project coverage in the scratch instance; never print raw identities or event properties. Restore metadata into a separate scratch Postgres from the consistent dump, with runtime roles/globals restored before checking grants when required. Verify project/key counts and expected scopes without displaying keys.
+
+## Reproduced evidence
+
+`python3 scripts/prove-clickhouse-restore.py` uses official ClickHouse 24.8, isolated tmpfs containers, no host ports and QA fixture data. It executes the actual before/cleanup hook, captures frozen files, writes a later source event and restores into a fresh table using captured DDL. Exactly two original events across two dedicated projects survive; the later source event does not. It also exercises the aggregate builder against the restored ClickHouse 24.8 data. All scratch containers and host files are cleaned up.
+
+`python3 scripts/prove-private-deployment.py` reproduces metadata `pg_dump` and `pg_restore` into a separate tmpfs Postgres. The restored database retains two fixture projects and four scoped credentials, with no seeded development credentials. No key values are printed. The proof waits for the final TCP PostgreSQL server, avoiding the image's temporary initialization server.
+
+Trade-offs: snapshots are consistent per ClickHouse table, not an atomic transaction shared with Postgres or other event tables. FREEZE temporarily retains old parts until restic completes, increasing disk use during the backup. The existing nightly job can fail if snapshot preparation fails; that failure must be visible. Restore validation in scratch proves the mechanism, while a production snapshot/readback is still required to prove operational durability. No QA fixture events enter real source projects.

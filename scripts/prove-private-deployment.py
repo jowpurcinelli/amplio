@@ -4,6 +4,7 @@ from pathlib import Path
 from uuid import uuid4
 root = Path(__file__).resolve().parents[1]
 name = "nel369-pg-proof-" + uuid4().hex[:10]
+restore_name = name + "-restore"
 image = "postgres:16-alpine"
 def run(args, **kw):
     return subprocess.run(args, check=True, capture_output=True, text=True, timeout=30, **kw)
@@ -14,7 +15,7 @@ try:
          "-e", "POSTGRES_HOST_AUTH_METHOD=trust", "-e", "POSTGRES_DB=amplio", "-e", "POSTGRES_USER=amplio", image])
     for attempt in range(15):
         try:
-            run(["docker", "exec", name, "pg_isready", "-U", "amplio", "-d", "amplio"])
+            run(["docker", "exec", name, "pg_isready", "-h", "127.0.0.1", "-U", "amplio", "-d", "amplio"])
             break
         except subprocess.CalledProcessError:
             time.sleep(1)
@@ -55,6 +56,21 @@ try:
             pass
         assert scalar("SELECT count(*) FROM projects") == "2"
         assert scalar("SELECT count(*) FROM api_keys") == "4"
-    print("PASS: production schema no demo keys; two isolated projects; private output mode; retry reuses keys; output failure rolls back project/key creation")
+    dump = subprocess.run(["docker", "exec", name, "pg_dump", "-Fc", "-U", "amplio", "-d", "amplio"], check=True, capture_output=True, timeout=30).stdout
+    run(["docker", "run", "--rm", "-d", "--name", restore_name, "--network", "none", "--tmpfs", "/var/lib/postgresql/data",
+         "-e", "POSTGRES_HOST_AUTH_METHOD=trust", "-e", "POSTGRES_DB=amplio", "-e", "POSTGRES_USER=amplio", image])
+    for attempt in range(15):
+        try:
+            run(["docker", "exec", restore_name, "pg_isready", "-h", "127.0.0.1", "-U", "amplio", "-d", "amplio"])
+            break
+        except subprocess.CalledProcessError:
+            time.sleep(1)
+    else:
+        raise RuntimeError("Restore Postgres did not become ready")
+    subprocess.run(["docker", "exec", "-i", restore_name, "pg_restore", "--clean", "--if-exists", "--no-owner", "-U", "amplio", "-d", "amplio"], input=dump, check=True, capture_output=True, timeout=30)
+    restored = run(["docker", "exec", restore_name, "psql", "-At", "-U", "amplio", "-d", "amplio", "-c",
+                    "SELECT (SELECT count(*) FROM projects),(SELECT count(*) FROM api_keys),(SELECT count(*) FROM api_keys WHERE key IN ('dev-key','dev-read-key'))"]).stdout.strip()
+    assert restored == "2|4|0"
+    print("PASS: production schema no demo keys; two isolated projects; private output mode; retry reuses keys; output failure rolls back creation; pg_dump/pg_restore reproduced 2 projects and 4 scoped credentials without secret output")
 finally:
-    subprocess.run(["docker", "rm", "-f", name], capture_output=True, timeout=30)
+    subprocess.run(["docker", "rm", "-f", name, restore_name], capture_output=True, timeout=30)
